@@ -1,9 +1,8 @@
 from flask import Flask, render_template, request, jsonify
-from analyzer import analyze_website, take_screenshot
 import os
-import traceback
-
-app = Flask(__name__)
+import json  # jsonモジュールのインポート
+from datetime import datetime
+import traceback  # デバッグ用
 
 app = Flask(__name__)
 
@@ -23,106 +22,65 @@ def analyze():
         if not url.startswith(('http://', 'https://')):
             url = 'https://' + url
 
-        # スクリーンショット撮影
-        screenshot = take_screenshot(url)
+        # サンプルの分析結果（OpenAI APIを使わない）
+        result = f"""
+        # {url} の分析結果
 
-        # ウェブサイト分析
-        raw_result = analyze_website(url)
+        ## ファーストビュー
+        **現状**: テスト分析です。
+        **問題点**:
+        - サンプルの問題点1
+        - サンプルの問題点2
 
-        # 分析結果の構造化
-        parsed_sections, priorities = parse_analysis_result(raw_result)
+        **改善案**:
+        - サンプルの改善案1
+        - サンプルの改善案2
+
+        ## 優先的改善点
+        1. 第一優先: サンプルの優先事項1
+        2. 第二優先: サンプルの優先事項2
+        """
 
         # HTMLとして結果を返す
-        return render_template(
-            'result.html',
-            url=url,
-            result=raw_result,  # 生の結果も保持
-            parsed_results=parsed_sections,
-            priorities=priorities,
-            screenshot=screenshot
-        )
+        return render_template('result.html', url=url, result=result)
 
     except Exception as e:
         print(f"アプリケーションエラー: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({"error": str(e)})
 
-def parse_analysis_result(markdown_text):
-    """
-    マークダウン形式の分析結果をパースして構造化データに変換
-    """
-    import re
+@app.route('/contact', methods=['POST'])
+def contact():
+    try:
+        # フォームデータの取得
+        contact_data = {
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'analyzed_url': request.form.get('analyzed_url', 'No URL specified'),
+            'company': request.form.get('company', ''),
+            'name': request.form.get('name', ''),
+            'email': request.form.get('email', ''),
+            'phone': request.form.get('phone', ''),
+            'message': request.form.get('message', ''),
+            'interests': request.form.getlist('interests[]')  # チェックボックスの複数選択
+        }
 
-    # セクションを格納する配列
-    sections = []
+        # お問い合わせをファイルに保存
+        contacts_dir = os.path.join(os.path.dirname(__file__), 'data', 'contacts')
+        os.makedirs(contacts_dir, exist_ok=True)
 
-    # 優先的改善点を格納する配列
-    priorities = []
+        filename = f"{contact_data['timestamp'].replace(':', '-').replace(' ', '_')}.json"
+        filepath = os.path.join(contacts_dir, filename)
 
-    # 現在処理中のセクション
-    current_section = None
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(contact_data, f, ensure_ascii=False, indent=2)
 
-    # 優先的改善点セクションのフラグ
-    in_priorities = False
+        # サンクスページを表示
+        return render_template('thanks.html', name=contact_data['name'])
 
-    # 行ごとに処理
-    lines = markdown_text.split('\n')
-    for line in lines:
-        # セクションヘッダー (### で始まる行)
-        if line.startswith('### '):
-            if current_section:
-                sections.append(current_section)
-
-            current_section = {
-                'title': line.replace('### ', '').strip(),
-                'status': '',
-                'problems': [],
-                'suggestions': []
-            }
-            in_priorities = False
-
-        # 優先的改善点セクション
-        elif line.startswith('## 優先的'):
-            in_priorities = True
-            if current_section:
-                sections.append(current_section)
-                current_section = None
-
-        # 優先的改善点の項目
-        elif in_priorities and re.match(r'^\d+\.\s', line):
-            priorities.append(line.split('. ', 1)[1].strip())
-
-        # 現在のセクション内の処理
-        elif current_section:
-            # 現状
-            if '**現状**:' in line:
-                current_section['status'] = line.split('**現状**:', 1)[1].strip()
-
-            # 問題点
-            elif '**問題点**:' in line:
-                # 次の行以降が問題点の項目になる可能性がある
-                continue
-
-            # 改善案
-            elif '**改善案**:' in line:
-                # 次の行以降が改善案の項目になる可能性がある
-                continue
-
-            # 箇条書き項目（- で始まる行）
-            elif line.strip().startswith('- '):
-                item = line.strip().replace('- ', '').strip()
-
-                # 直前の見出しによって振り分け
-                if '**問題点**:' in '\n'.join(lines[max(0, lines.index(line)-5):lines.index(line)]):
-                    current_section['problems'].append(item)
-                elif '**改善案**:' in '\n'.join(lines[max(0, lines.index(line)-5):lines.index(line)]):
-                    current_section['suggestions'].append(item)
-
-    # 最後のセクションを追加
-    if current_section:
-        sections.append(current_section)
-
-    return sections, priorities
-
+    except Exception as e:
+        print(f"お問い合わせ処理エラー: {str(e)}")
+        print(traceback.format_exc())  # 詳細なエラー情報を出力
+        return jsonify({"error": str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)

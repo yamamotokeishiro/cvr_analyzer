@@ -5,121 +5,182 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>分析結果 - CVR導線分析ツール</title>
     <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/style.css') }}"
     />
+    <style>
+      body {
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f8f9fa;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .header {
+        background-color: #fff;
+        border-bottom: 1px solid #dee2e6;
+        padding: 20px 0;
+        margin-bottom: 30px;
+      }
+      .result-content {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        padding: 30px;
+        margin-bottom: 30px;
+      }
+      h1 {
+        color: #2c3e50;
+        margin-bottom: 20px;
+      }
+      h2 {
+        color: #3498db;
+        margin-top: 30px;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #f1f1f1;
+        padding-bottom: 10px;
+      }
+      h3 {
+        color: #2c3e50;
+        margin-top: 25px;
+        margin-bottom: 15px;
+      }
+      .problem-point {
+        background-color: #fff3f3;
+        border-left: 4px solid #dc3545;
+        padding: 15px;
+        margin-bottom: 20px;
+      }
+      .solution-point {
+        background-color: #f0fff4;
+        border-left: 4px solid #28a745;
+        padding: 15px;
+        margin-bottom: 20px;
+      }
+      .cta-section {
+        background-color: #e9f7fe;
+        border-radius: 8px;
+        padding: 30px;
+        margin-top: 40px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      }
+      .contact-btn {
+        background-color: #3498db;
+        color: white;
+        padding: 10px 25px;
+        font-size: 1.1rem;
+        border-radius: 5px;
+        border: none;
+        transition: all 0.3s ease;
+      }
+      .contact-btn:hover {
+        background-color: #2980b9;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .screenshot-container {
+        margin: 20px 0;
+        text-align: center;
+      }
+      .screenshot-container img {
+        max-width: 100%;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      footer {
+        text-align: center;
+        margin-top: 50px;
+        padding: 20px 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+        border-top: 1px solid #dee2e6;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
-      <header>
-        <h1>CVR導線分析レポート</h1>
-        <p>分析対象: <a href="{{ url }}" target="_blank">{{ url }}</a></p>
+      <header class="header">
+        <h1>CVR導線分析結果</h1>
+        <p class="lead">
+          分析対象: <a href="{{ url }}" target="_blank">{{ url }}</a>
+        </p>
       </header>
 
-      <main class="results">
-        <!-- スクリーンショットセクション -->
-        {% if screenshot_paths %}
-        <div class="screenshots-section">
-          <h2>サイトのスクリーンショット</h2>
-          <div class="screenshot-container">
-            {% if screenshot_paths.desktop %}
-            <div class="screenshot-item">
-              <h3>デスクトップ表示</h3>
-              <img
-                src="{{ url_for('static', filename=screenshot_paths.desktop) }}"
-                alt="デスクトップ表示"
-                class="screenshot-img"
-              />
-            </div>
-            {% endif %} {% if screenshot_paths.mobile %}
-            <div class="screenshot-item">
-              <h3>モバイル表示</h3>
-              <img
-                src="{{ url_for('static', filename=screenshot_paths.mobile) }}"
-                alt="モバイル表示"
-                class="screenshot-img"
-              />
-            </div>
-            {% endif %}
-          </div>
-        </div>
-        {% endif %}
-
-        <!-- 改善版 result.html (一部) -->
-        <div class="card mb-4">
-          <div class="card-header bg-primary text-white">
-            <h2 class="h4 mb-0">分析結果サマリー</h2>
-          </div>
-          <div class="card-body">
-            <!-- マークダウンのパース結果を構造化して表示 -->
-            {% for section in parsed_results %}
-            <div class="analysis-section mb-4">
-              <h3>{{ section.title }}</h3>
-
-              {% if section.status %}
-              <div class="status-box mb-3">
-                <h5>現状:</h5>
-                <p>{{ section.status }}</p>
-              </div>
-              {% endif %} {% if section.problems %}
-              <div class="problem-point">
-                <h5>問題点:</h5>
-                <ul>
-                  {% for problem in section.problems %}
-                  <li>{{ problem }}</li>
-                  {% endfor %}
-                </ul>
-              </div>
-              {% endif %} {% if section.suggestions %}
-              <div class="solution-point">
-                <h5>改善案:</h5>
-                <ul>
-                  {% for suggestion in section.suggestions %}
-                  <li>{{ suggestion }}</li>
-                  {% endfor %}
-                </ul>
-              </div>
-              {% endif %}
-            </div>
-            {% endfor %}
-
-            <!-- 優先的改善点 -->
-            {% if priorities %}
-            <div class="priorities-section mt-4">
-              <h3>優先的に取り組むべき改善点</h3>
-              {% for priority in priorities %}
-              <div class="priority-item">
-                <h5>優先度 {{ loop.index }}:</h5>
-                <p>{{ priority }}</p>
-              </div>
-              {% endfor %}
-            </div>
-            {% endif %}
-          </div>
-        </div>
-
-        <!-- 分析結果の下にスクリーンショットを表示 -->
+      <main>
+        <!-- スクリーンショット表示（もしあれば） -->
         {% if screenshot %}
-        <div class="card mt-4">
+        <div class="card mb-4">
           <div class="card-header">
-            <h3>ウェブサイトスクリーンショット</h3>
+            <h3 class="mb-0">ウェブサイトスクリーンショット</h3>
           </div>
-          <div class="card-body">
+          <div class="card-body screenshot-container">
             <img
               src="{{ url_for('static', filename='screenshots/' + screenshot) }}"
               alt="サイトスクリーンショット"
-              class="img-fluid border"
+              class="img-fluid"
             />
           </div>
         </div>
         {% endif %}
 
-        <div class="cta-section">
-          <h2>さらに詳しい分析とサポートをご希望ですか？</h2>
-          <p>
-            私たちの専門チームがあなたのウェブサイトを徹底的に分析し、CVRを劇的に向上させるための具体的な施策をご提案します。
+        <!-- 分析結果 -->
+        <div class="result-content">
+          <!-- マークダウン形式のテキストをHTMLに変換して表示 -->
+          {% set lines = result.split('\n') %} {% for line in lines %} {% if
+          line.startswith('# ') %}
+          <h1>{{ line[2:] }}</h1>
+          {% elif line.startswith('## ') %}
+          <h2>{{ line[3:] }}</h2>
+          {% elif line.startswith('### ') %}
+          <h3>{{ line[4:] }}</h3>
+          {% elif line.startswith('**現状**:') %}
+          <div class="mb-3">
+            <strong>現状:</strong> {{ line.split('**現状**:', 1)[1] }}
+          </div>
+          {% elif line.startswith('**問題点**:') %}
+          <div class="problem-point">
+            <h4>問題点:</h4>
+            <!-- 次の箇条書き項目はループの次の行で処理 -->
+          </div>
+          {% elif line.startswith('**改善案**:') %}
+          <div class="solution-point">
+            <h4>改善案:</h4>
+            <!-- 次の箇条書き項目はループの次の行で処理 -->
+          </div>
+          {% elif line.startswith('- ') %}
+          <ul class="mb-0">
+            <li>{{ line[2:] }}</li>
+          </ul>
+          {% elif line.strip().startswith('1.') or line.strip().startswith('2.')
+          or line.strip().startswith('3.') %}
+          <ol class="mb-3">
+            <li>{{ line.split('.', 1)[1].strip() }}</li>
+          </ol>
+          {% elif line.strip() %}
+          <p>{{ line }}</p>
+          {% else %}
+          <br />
+          {% endif %} {% endfor %}
+        </div>
+
+        <!-- お問い合わせCTA -->
+        <div class="cta-section text-center">
+          <h2>さらに詳しい分析とサポートを受ける</h2>
+          <p class="lead mb-4">
+            私たちの専門チームがあなたのウェブサイトを徹底的に分析し、CVRを劇的に向上させる具体的な施策をご提案します。
           </p>
-          <a href="#" class="contact-btn">無料相談を予約する</a>
+          <a href="#" id="contact-btn" class="btn contact-btn"
+            >無料相談を予約する</a
+          >
         </div>
       </main>
 
@@ -127,5 +188,99 @@
         <p>&copy; 2025 CVR導線分析ツール</p>
       </footer>
     </div>
+
+    <!-- お問い合わせモーダル（展開時にのみ表示） -->
+    <div
+      class="modal fade"
+      id="contactModal"
+      tabindex="-1"
+      aria-labelledby="contactModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="contactModalLabel">無料相談のご予約</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form action="/contact" method="post">
+              <input type="hidden" name="analyzed_url" value="{{ url }}" />
+              <div class="mb-3">
+                <label for="company" class="form-label">会社名</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="company"
+                  name="company"
+                  required
+                />
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="name" class="form-label">お名前</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="name"
+                    name="name"
+                    required
+                  />
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="email" class="form-label">メールアドレス</label>
+                  <input
+                    type="email"
+                    class="form-control"
+                    id="email"
+                    name="email"
+                    required
+                  />
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="phone" class="form-label">電話番号</label>
+                <input
+                  type="tel"
+                  class="form-control"
+                  id="phone"
+                  name="phone"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="message" class="form-label">ご要望・ご質問</label>
+                <textarea
+                  class="form-control"
+                  id="message"
+                  name="message"
+                  rows="3"
+                ></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                送信する
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // お問い合わせボタンクリック時にモーダルを表示
+      document
+        .getElementById("contact-btn")
+        .addEventListener("click", function () {
+          var contactModal = new bootstrap.Modal(
+            document.getElementById("contactModal")
+          );
+          contactModal.show();
+        });
+    </script>
   </body>
 </html>
