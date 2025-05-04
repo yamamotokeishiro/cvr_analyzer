@@ -17,6 +17,34 @@
       </header>
 
       <main class="results">
+        <!-- スクリーンショットセクション -->
+        {% if screenshot_paths %}
+        <div class="screenshots-section">
+          <h2>サイトのスクリーンショット</h2>
+          <div class="screenshot-container">
+            {% if screenshot_paths.desktop %}
+            <div class="screenshot-item">
+              <h3>デスクトップ表示</h3>
+              <img
+                src="{{ url_for('static', filename=screenshot_paths.desktop) }}"
+                alt="デスクトップ表示"
+                class="screenshot-img"
+              />
+            </div>
+            {% endif %} {% if screenshot_paths.mobile %}
+            <div class="screenshot-item">
+              <h3>モバイル表示</h3>
+              <img
+                src="{{ url_for('static', filename=screenshot_paths.mobile) }}"
+                alt="モバイル表示"
+                class="screenshot-img"
+              />
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
         <div class="result-content">
           <!-- マークダウン形式のテキストを整形して表示 -->
           {% set lines = result.split('\n') %} {% for line in lines %} {% if
@@ -28,7 +56,7 @@
           <div class="problem-point">{{ line }}</div>
           {% elif '改善案:' in line %}
           <div class="solution-point">{{ line }}</div>
-          {% else %}
+          {% elif line.strip() %}
           <p>{{ line }}</p>
           {% endif %} {% endfor %}
         </div>

@@ -3,6 +3,7 @@ from analyzer import analyze_website
 import os
 import traceback  # スタックトレース取得用
 
+
 app = Flask(__name__)
 
 @app.route('/')
@@ -17,19 +18,43 @@ def analyze():
         if not url:
             return jsonify({'error': 'URLが入力されていません'})
 
+        print(f"分析リクエスト: {url}")
+
         # Webサイト分析の実行
-        raw_result = analyze_website(url)
+        result = analyze_website(url)
+
+        # 分析結果とスクリーンショット情報を取得
+        analysis = result.get('analysis', '')
+        screenshots = result.get('screenshots', None)
+
+        # スクリーンショットのパスを変換（静的ファイル用）
+        screenshot_paths = {}
+        if screenshots:
+            if 'desktop_path' in screenshots:
+                # パスから静的ファイル参照用に変換
+                desktop_path = screenshots['desktop_path'].replace('static/', '')
+                screenshot_paths['desktop'] = desktop_path
+
+            if 'mobile_path' in screenshots:
+                # パスから静的ファイル参照用に変換
+                mobile_path = screenshots['mobile_path'].replace('static/', '')
+                screenshot_paths['mobile'] = mobile_path
+
+        print("分析完了、結果をレンダリング")
 
         # 行の間に適切な空行を追加して読みやすくする
-        result = raw_result.replace('\n# ', '\n\n# ')
-        result = result.replace('\n## ', '\n\n## ')
-        result = result.replace('[具体的な問題点]', '\n[具体的な問題点]\n')
-        result = result.replace('[具体的な改善案]', '\n[具体的な改善案]\n')
+        analysis = analysis.replace('\n# ', '\n\n# ')
+        analysis = analysis.replace('\n## ', '\n\n## ')
 
         # HTMLとして結果を返す
-        return render_template('result.html', url=url, result=result)
+        return render_template('result.html',
+                              url=url,
+                              result=analysis,
+                              screenshot_paths=screenshot_paths)
     except Exception as e:
         print(f"アプリケーションエラー: {str(e)}")
+        import traceback
+        print(traceback.format_exc())  # スタックトレースを出力
         return jsonify({'error': str(e)})
 
 

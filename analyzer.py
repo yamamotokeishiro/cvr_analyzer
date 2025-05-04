@@ -4,6 +4,15 @@ from bs4 import BeautifulSoup
 import openai
 from dotenv import load_dotenv
 import time
+import traceback
+import uuid
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from PIL import Image
+import io
+import base64
 
 # 環境変数のロード
 load_dotenv()
@@ -21,19 +30,38 @@ def analyze_website(url):
     指定されたURLのWebサイトを分析する総合関数
     """
     try:
+        print(f"URLの分析を開始: {url}")
         # Webサイトの基本情報取得
-        website_data = get_website_content(url)
+        website_data = get_basic_website_info(url)
+        print("ウェブサイト情報の取得に成功")
+
+        # スクリーンショットの取得
+        screenshot_info = take_screenshot(url)
+        if screenshot_info:
+            print(f"スクリーンショット取得成功: {screenshot_info['desktop_path']}")
+            website_data['screenshot_info'] = screenshot_info
+        else:
+            print("スクリーンショット取得失敗")
+            website_data['screenshot_info'] = None
 
         # AI分析の実行
+        print("分析を実行")
         if api_key == "dummy_key_for_testing":
             analysis_result = get_demo_analysis()
         else:
             analysis_result = analyze_with_gpt(website_data, url)
+        print("分析完了")
 
-        return analysis_result
+        # 分析結果とスクリーンショット情報を含めて返す
+        return {
+            'analysis': analysis_result,
+            'screenshots': website_data.get('screenshot_info')
+        }
     except Exception as e:
         print(f"エラー詳細: {type(e).__name__}, {str(e)}")
-        return f"""
+        print(traceback.format_exc())  # スタックトレースを出力
+        return {
+            'analysis': f"""
 # CVR導線分析レポート（エラー発生）
 
 ## エラー情報
@@ -45,37 +73,62 @@ def analyze_website(url):
 3. ユーザー導線を単純化する
 4. フォームの入力項目を最小限にする
 5. 信頼性を高める要素（実績、顧客の声）を追加する
-        """
+            """,
+            'screenshots': None
+        }
 
-def get_website_content(url):
-    """Webサイトのコンテンツと詳細情報を取得する関数"""
+def get_basic_website_info(url):
+    """ウェブサイトの基本情報を取得する関数"""
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
 
     try:
         # ウェブページのHTMLを取得
+        print(f"URLにリクエスト: {url}")
         start_time = time.time()
         response = requests.get(url, headers=headers, timeout=15)
         response.raise_for_status()
         load_time = time.time() - start_time
+        print(f"ページロード時間: {load_time:.2f}秒")
 
         # BeautifulSoupでHTMLを解析
+        print("HTMLの解析開始")
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        # 基本情報の抽出
+        # タイトルと説明を抽出
         title = soup.title.string if soup.title else "タイトルなし"
-        meta_description = soup.find('meta', attrs={'name': 'description'})
-        description = meta_description['content'] if meta_description and meta_description.get('content') else "説明なし"
+        print(f"タイトル: {title}")
 
-        # リンク、ボタン、フォームなどの重要要素をカウント
+        # メタ説明の取得
+        meta_description = soup.find('meta', attrs={'name': 'description'})
+        description = ""
+        if meta_description:
+            if meta_description.has_attr('content'):
+                description = meta_description['content']
+        if not description:
+            description = "説明なし"
+        print(f"説明: {description[:50]}...")
+
+        # 主要要素のカウント
         links = len(soup.find_all('a'))
         buttons = len(soup.find_all('button'))
         forms = len(soup.find_all('form'))
         images = len(soup.find_all('img'))
+        print(f"リンク: {links}, ボタン: {buttons}, フォーム: {forms}, 画像: {images}")
 
-        # HTML内の主要なテキストコンテンツを抽出
+        # CTA要素の検出
+        cta_elements = identify_cta_elements(soup)
+        print(f"検出されたCTA要素: {len(cta_elements)}個")
+
+        # フォーム分析
+        forms_analysis = analyze_forms(soup)
+        print(f"検出されたフォーム: {len(forms_analysis)}個")
+
+        # テキストコンテンツを抽出
+        print("テキストコンテンツの抽出開始")
         main_content = extract_main_content(soup)
+        print(f"テキスト長: {len(main_content)} 文字")
 
         # サイト情報の構造化
         site_info = {
@@ -88,22 +141,18 @@ def get_website_content(url):
             'load_time': load_time
         }
 
-        # CTA要素の特定と分析
-        cta_elements = identify_cta_elements(soup)
-
-        # フォーム分析
-        forms_analysis = analyze_forms(soup)
-
         # 総合データを返す
         return {
-            'main_content': main_content,
             'site_info': site_info,
+            'main_content': main_content,
             'cta_elements': cta_elements,
-            'forms_analysis': forms_analysis
+            'forms_analysis': forms_analysis,
+            'soup': soup  # 追加の分析のために保持
         }
 
     except Exception as e:
         print(f"ウェブサイト取得エラー詳細: {type(e).__name__}, {str(e)}")
+        print(traceback.format_exc())
         raise Exception(f"ウェブサイトの取得中にエラーが発生しました: {str(e)}")
 
 def extract_main_content(soup):
@@ -116,11 +165,17 @@ def extract_main_content(soup):
     if main_element:
         # メインコンテンツから段落とヘッダーを抽出
         for elem in main_element.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
-            main_content += elem.get_text() + "\n\n"
+            try:
+                main_content += elem.get_text() + "\n\n"
+            except Exception as e:
+                print(f"テキスト抽出エラー: {str(e)}")
     else:
         # メイン要素が見つからない場合はボディ全体から抽出
         for elem in soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
-            main_content += elem.get_text() + "\n\n"
+            try:
+                main_content += elem.get_text() + "\n\n"
+            except Exception as e:
+                print(f"テキスト抽出エラー: {str(e)}")
 
     # コンテンツが長すぎる場合はトリミング
     if len(main_content) > 4000:
@@ -135,25 +190,31 @@ def identify_cta_elements(soup):
     # ボタン要素の検出
     buttons = soup.find_all('button')
     for button in buttons:
-        text = button.get_text(strip=True)
-        if is_cta_text(text):
-            cta_candidates.append({
-                'type': 'button',
-                'text': text,
-                'position': 'unknown'
-            })
+        try:
+            text = button.get_text(strip=True)
+            if is_cta_text(text):
+                cta_candidates.append({
+                    'type': 'button',
+                    'text': text,
+                    'position': 'unknown'
+                })
+        except Exception as e:
+            print(f"ボタン解析エラー: {str(e)}")
 
     # リンクボタンの検出
     links = soup.find_all('a')
     for link in links:
-        text = link.get_text(strip=True)
-        if is_cta_text(text) or has_button_class(link):
-            cta_candidates.append({
-                'type': 'link',
-                'text': text,
-                'href': link.get('href', ''),
-                'position': 'unknown'
-            })
+        try:
+            text = link.get_text(strip=True)
+            if is_cta_text(text) or has_button_class(link):
+                cta_candidates.append({
+                    'type': 'link',
+                    'text': text,
+                    'href': link.get('href', ''),
+                    'position': 'unknown'
+                })
+        except Exception as e:
+            print(f"リンク解析エラー: {str(e)}")
 
     return cta_candidates[:10]  # 最大10個のCTA要素を返す
 
@@ -184,54 +245,260 @@ def analyze_forms(soup):
     forms = soup.find_all('form')
 
     for idx, form in enumerate(forms):
-        # フォームのアクション（送信先）
-        action = form.get('action', '')
-        method = form.get('method', 'get').lower()
+        try:
+            # フォームのアクション（送信先）
+            action = form.get('action', '')
+            method = form.get('method', 'get').lower()
 
-        # 入力フィールドの数
-        input_fields = form.find_all(['input', 'textarea', 'select'])
-        field_count = len(input_fields)
+            # 入力フィールドの数
+            input_fields = form.find_all(['input', 'textarea', 'select'])
+            field_count = len(input_fields)
 
-        # 必須フィールドの数
-        required_fields = len([field for field in input_fields if field.has_attr('required')])
+            # 必須フィールドの数
+            required_fields = len([field for field in input_fields if field.has_attr('required')])
 
-        # 送信ボタンの分析
-        submit_buttons = []
+            # 送信ボタンの分析
+            submit_buttons = []
 
-        # formタグ内のsubmitボタン
-        for button in form.find_all(['button', 'input'], attrs={'type': ['submit', 'button']}):
-            button_text = ""
-            if button.name == 'button':
-                button_text = button.get_text(strip=True)
-            else:
-                button_text = button.get('value', '')
+            # formタグ内のsubmitボタン
+            submit_elements = form.find_all(['button', 'input'], type=['submit', 'button'])
+            for button in submit_elements:
+                button_text = ""
+                if button.name == 'button':
+                    button_text = button.get_text(strip=True)
+                else:
+                    button_text = button.get('value', '')
 
-            if button_text:
-                submit_buttons.append({
-                    'text': button_text
-                })
+                if button_text:
+                    submit_buttons.append({
+                        'text': button_text
+                    })
 
-        forms_data.append({
-            'form_id': idx + 1,
-            'action': action,
-            'method': method,
-            'field_count': field_count,
-            'required_fields': required_fields,
-            'submit_buttons': submit_buttons
-        })
+            forms_data.append({
+                'form_id': idx + 1,
+                'action': action,
+                'method': method,
+                'field_count': field_count,
+                'required_fields': required_fields,
+                'submit_buttons': submit_buttons
+            })
+        except Exception as e:
+            print(f"フォーム解析エラー: {str(e)}")
 
     return forms_data
+
+def take_screenshot(url):
+    """
+    デスクトップとモバイルの全ページスクリーンショットを取得する関数
+    正しいモバイルエミュレーションを使用
+    """
+    # スクリーンショット保存用ディレクトリの作成
+    screenshot_dir = "static/screenshots"
+    os.makedirs(screenshot_dir, exist_ok=True)
+
+    # ユニークなファイル名を生成（タイムスタンプとUUID）
+    timestamp = int(time.time())
+    unique_id = str(uuid.uuid4())[:8]
+    desktop_filename = f"desktop_{timestamp}_{unique_id}.png"
+    mobile_filename = f"mobile_{timestamp}_{unique_id}.png"
+
+    desktop_path = os.path.join(screenshot_dir, desktop_filename)
+    mobile_path = os.path.join(screenshot_dir, mobile_filename)
+
+    try:
+        # デスクトップ用のドライバー設定
+        desktop_options = Options()
+        desktop_options.add_argument("--headless")
+        desktop_options.add_argument("--no-sandbox")
+        desktop_options.add_argument("--disable-dev-shm-usage")
+
+        # デスクトップドライバーの初期化
+        service = Service(ChromeDriverManager().install())
+        desktop_driver = webdriver.Chrome(service=service, options=desktop_options)
+
+        # デスクトップ画面のスクリーンショット
+        desktop_driver.set_window_size(1366, 768)
+        desktop_driver.get(url)
+        time.sleep(3)  # ページ読み込み待機
+
+        # JavaScriptを使用して完全なページの高さを取得
+        total_height = desktop_driver.execute_script("return Math.max(document.body.scrollHeight, document.body.offsetHeight, document.documentElement.clientHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight);")
+
+        # ビューポートの設定
+        desktop_driver.set_window_size(1366, total_height)
+        time.sleep(1)  # レイアウト調整を待機
+
+        # 完全なページのスクリーンショットを取得
+        desktop_driver.save_screenshot(desktop_path)
+        print(f"デスクトップフルページスクリーンショットを保存: {desktop_path} (高さ: {total_height}px)")
+
+        # デスクトップドライバーを閉じる
+        desktop_driver.quit()
+
+        # モバイル用のドライバー設定（モバイルエミュレーション付き）
+        mobile_options = Options()
+        mobile_options.add_argument("--headless")
+        mobile_options.add_argument("--no-sandbox")
+        mobile_options.add_argument("--disable-dev-shm-usage")
+
+        # モバイルエミュレーションの設定
+        mobile_emulation = {
+            "deviceMetrics": {"width": 375, "height": 812, "pixelRatio": 3.0},
+            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1"
+        }
+        mobile_options.add_experimental_option("mobileEmulation", mobile_emulation)
+
+        # モバイルドライバーの初期化
+        mobile_driver = webdriver.Chrome(service=service, options=mobile_options)
+
+        # モバイル画面のスクリーンショット
+        mobile_driver.get(url)
+        time.sleep(3)  # ページ読み込み待機
+
+        # JavaScriptを使用して完全なページの高さを取得
+        mobile_total_height = mobile_driver.execute_script("return Math.max(document.body.scrollHeight, document.body.offsetHeight, document.documentElement.clientHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight);")
+
+        # ビューポートの設定（高さはスクロール分も含める）
+        mobile_driver.execute_script(f"document.documentElement.style.height = '{mobile_total_height}px';")
+        time.sleep(1)  # レイアウト調整を待機
+
+        # 完全なページのスクリーンショットを取得
+        mobile_driver.save_screenshot(mobile_path)
+        print(f"モバイルフルページスクリーンショットを保存: {mobile_path} (高さ: {mobile_total_height}px)")
+
+        # モバイルドライバーを閉じる
+        mobile_driver.quit()
+
+        # 画像の視覚的特徴を分析
+        desktop_features = analyze_image_features(desktop_path)
+        mobile_features = analyze_image_features(mobile_path)
+
+        return {
+            'desktop_path': desktop_path,
+            'mobile_path': mobile_path,
+            'timestamp': timestamp,
+            'desktop_filename': desktop_filename,
+            'mobile_filename': mobile_filename,
+            'desktop_features': desktop_features,
+            'mobile_features': mobile_features,
+            'desktop_height': total_height,
+            'mobile_height': mobile_total_height
+        }
+    except Exception as e:
+        print(f"スクリーンショット取得エラー: {str(e)}")
+        print(traceback.format_exc())
+
+        # エラーハンドリング - 単純なビューポートスクリーンショットを試みる
+        try:
+            print("代替手段を試行中...")
+            # デスクトップ
+            desktop_options = Options()
+            desktop_options.add_argument("--headless")
+            desktop_options.add_argument("--no-sandbox")
+            desktop_options.add_argument("--disable-dev-shm-usage")
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=desktop_options)
+            driver.set_window_size(1366, 768)
+            driver.get(url)
+            time.sleep(3)
+            driver.save_screenshot(desktop_path)
+            driver.quit()
+
+            # モバイル（単純化版）
+            mobile_options = Options()
+            mobile_options.add_argument("--headless")
+            mobile_options.add_argument("--no-sandbox")
+            mobile_options.add_argument("--disable-dev-shm-usage")
+            mobile_options.add_argument("--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1")
+            driver = webdriver.Chrome(service=service, options=mobile_options)
+            driver.set_window_size(375, 812)
+            driver.get(url)
+            time.sleep(3)
+            driver.save_screenshot(mobile_path)
+            driver.quit()
+
+            print("代替手段: 基本的なスクリーンショットを保存しました")
+
+            return {
+                'desktop_path': desktop_path,
+                'mobile_path': mobile_path,
+                'timestamp': timestamp,
+                'desktop_filename': desktop_filename,
+                'mobile_filename': mobile_filename,
+                'desktop_features': analyze_image_features(desktop_path),
+                'mobile_features': analyze_image_features(mobile_path),
+                'fallback_method': True
+            }
+        except Exception as fallback_error:
+            print(f"代替スクリーンショット取得エラー: {str(fallback_error)}")
+            return None
+
+
+
+def analyze_image_features(image_path):
+    """画像の基本的な特徴を分析する関数"""
+    try:
+        img = Image.open(image_path)
+        width, height = img.size
+
+        # 画像を小さなサイズに縮小して色分析を高速化
+        small_img = img.resize((100, int(100 * height / width)))
+        pixels = list(small_img.getdata())
+
+        # 色分布の分析
+        unique_colors = len(set(pixels))
+        color_diversity = unique_colors / (small_img.width * small_img.height)
+
+        # 明るさの分析
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        brightness_sum = 0
+        for r, g, b in img.getdata():
+            # 明るさの計算 (0.299*R + 0.587*G + 0.114*B)
+            brightness = 0.299 * r + 0.587 * g + 0.114 * b
+            brightness_sum += brightness
+
+        avg_brightness = brightness_sum / (width * height) / 255.0
+
+        # 結果をまとめる
+        return {
+            'width': width,
+            'height': height,
+            'aspect_ratio': width / height,
+            'color_diversity': color_diversity,
+            'brightness': avg_brightness,
+            'is_mobile_friendly': width / height < 1
+        }
+    except Exception as e:
+        print(f"画像分析エラー: {str(e)}")
+        return {
+            'width': 0,
+            'height': 0,
+            'aspect_ratio': 0,
+            'color_diversity': 0,
+            'brightness': 0,
+            'is_mobile_friendly': False,
+            'error': str(e)
+        }
 
 def analyze_with_gpt(website_data, url):
     """GPT-4を使用してコンテンツを分析する関数"""
     try:
         # プロンプトの生成
-        prompt = create_simple_prompt(website_data, url)
+        prompt = create_optimized_prompt(website_data, url)
 
         # システムメッセージを強化
         system_message = """
         あなたはCVR（コンバージョン率）最適化の専門家です。
         Webサイトの分析と改善提案を行います。
+
+        分析にあたっては以下の知識を活用してください:
+        - ユーザー心理学とヒューリスティクス（社会的証明、希少性、権威性など）
+        - 視覚的階層とF型/Z型の視線パターン
+        - 効果的なCTAデザインとコピーライティング
+        - フォーム最適化とマイクロコンバージョン
+        - A/Bテストの標準的な成功事例
 
         具体的、実用的、かつ実装可能な改善案を提供してください。
         「〜すべきです」という抽象的な提案ではなく、「〜を〜に変更する」という具体的な提案をしてください。
@@ -263,20 +530,77 @@ def analyze_with_gpt(website_data, url):
 
     except Exception as e:
         print(f"GPT分析中にエラーが発生しました: {str(e)}")
+        print(traceback.format_exc())
         return get_demo_analysis()
 
-def create_simple_prompt(website_data, url):
-    """シンプルなプロンプトを生成する関数"""
+def create_optimized_prompt(website_data, url):
+    """視覚的情報を含めた最適化されたプロンプトを生成する関数"""
+    # 基本情報
     site_info = website_data['site_info']
 
-    # CTA要素の数
-    cta_count = len(website_data['cta_elements'])
+    # CTAに関する情報
+    cta_text = "CTA要素の分析:\n"
+    if website_data['cta_elements']:
+        for idx, cta in enumerate(website_data['cta_elements']):
+            cta_text += f"{idx+1}. タイプ: {cta['type']}, テキスト: '{cta['text']}'\n"
+    else:
+        cta_text += "明確なCTA要素が見つかりませんでした。\n"
 
-    # フォームの数
-    form_count = len(website_data['forms_analysis'])
+    # フォームに関する情報
+    form_text = "フォーム分析:\n"
+    if website_data['forms_analysis']:
+        for idx, form in enumerate(website_data['forms_analysis']):
+            form_text += f"{idx+1}. フィールド数: {form['field_count']}, 必須項目数: {form['required_fields']}\n"
 
+            # 送信ボタンのテキスト
+            if 'submit_buttons' in form and form['submit_buttons']:
+                button_texts = []
+                for btn in form['submit_buttons']:
+                    if isinstance(btn, dict) and 'text' in btn:
+                        button_texts.append(btn['text'])
+                if button_texts:
+                    form_text += f"   送信ボタン: {', '.join(button_texts)}\n"
+    else:
+        form_text += "フォームが見つかりませんでした。\n"
+
+    # スクリーンショットの視覚的分析情報
+    visual_analysis = ""
+    if 'screenshot_info' in website_data and website_data['screenshot_info']:
+        screenshot_info = website_data['screenshot_info']
+
+        # デスクトップバージョンの分析
+        if 'desktop_features' in screenshot_info and screenshot_info['desktop_features']:
+            desktop = screenshot_info['desktop_features']
+            visual_analysis += "\nデスクトップバージョンの視覚的分析:\n"
+            visual_analysis += f"- 解像度: {desktop['width']}x{desktop['height']}ピクセル\n"
+            visual_analysis += f"- 明るさ: {desktop['brightness']:.2f}/1.0 (0=暗い, 1=明るい)\n"
+            visual_analysis += f"- 色の多様性: {desktop['color_diversity']:.2f}/1.0\n"
+
+            # 明るさに基づく評価
+            if desktop['brightness'] < 0.4:
+                visual_analysis += "- 全体的に暗めのデザインを採用しています。\n"
+            elif desktop['brightness'] > 0.6:
+                visual_analysis += "- 全体的に明るいデザインで、開放的な印象です。\n"
+            else:
+                visual_analysis += "- 明るさのバランスが取れたデザインです。\n"
+
+        # モバイルバージョンの分析
+        if 'mobile_features' in screenshot_info and screenshot_info['mobile_features']:
+            mobile = screenshot_info['mobile_features']
+            visual_analysis += "\nモバイルバージョンの視覚的分析:\n"
+            visual_analysis += f"- 解像度: {mobile['width']}x{mobile['height']}ピクセル\n"
+            visual_analysis += f"- 明るさ: {mobile['brightness']:.2f}/1.0 (0=暗い, 1=明るい)\n"
+            visual_analysis += f"- 色の多様性: {mobile['color_diversity']:.2f}/1.0\n"
+
+            # モバイルフレンドリー判定
+            if mobile['is_mobile_friendly']:
+                visual_analysis += "- モバイル最適化：適切にデザインされています\n"
+            else:
+                visual_analysis += "- モバイル最適化：改善の余地があります\n"
+
+    # 最終的なプロンプトの構築
     prompt = f"""
-    以下のWebサイトのCVR導線について分析し、改善策を提案してください。
+    以下のWebサイトのCVR導線について、専門的かつ詳細に分析し、具体的な改善策を提案してください。
 
     URL: {url}
 
@@ -288,20 +612,49 @@ def create_simple_prompt(website_data, url):
     - フォーム数: {site_info['num_forms']}
     - 画像数: {site_info['num_images']}
     - 読み込み時間: {site_info['load_time']:.2f}秒
-    - 検出したCTA要素数: {cta_count}
-    - 検出したフォーム数: {form_count}
 
-    Webサイトのコンテンツ:
+    {cta_text}
+
+    {form_text}
+
+    {visual_analysis}
+
+    Webサイトのコンテンツ（一部）:
     {website_data['main_content'][:1500]}...
 
-    以下の観点から分析し、具体的な改善案を提示してください:
-    1. ファーストビュー分析
-    2. CTAボタン分析
-    3. ユーザー導線分析
-    4. フォーム分析
-    5. コンテンツ分析
+    以下の観点から詳細に分析し、具体的な改善施策を提案してください:
 
-    回答は以下の形式でお願いします:
+    1. ファーストビュー分析
+       - 初見のユーザーに対する印象
+       - 価値提案の明確さ
+       - 視覚的階層構造
+
+    2. CTAボタン分析
+       - ボタンの視認性、配置、サイズ
+       - テキストの説得力
+       - コントラストと目立ちやすさ
+
+    3. ユーザー導線分析
+       - ナビゲーションの直感性
+       - ステップ数と複雑さ
+       - スムーズなユーザーフロー
+
+    4. フォーム分析
+       - フィールド数と必須項目
+       - 入力補助とガイダンス
+       - エラー表示の分かりやすさ
+
+    5. コンテンツ分析
+       - 文章の読みやすさ
+       - 信頼性を高める要素
+       - スキャナビリティ
+
+    6. モバイル対応
+       - レスポンシブデザイン
+       - タップターゲットサイズ
+       - モバイル特有の課題
+
+    回答は以下の形式で、データに基づいた具体的かつ実行可能な改善案を含めてください:
 
     # CVR導線分析レポート
 
@@ -326,6 +679,11 @@ def create_simple_prompt(website_data, url):
     [具体的な改善案]
 
     ## 5. コンテンツ分析
+    [具体的な問題点]
+
+    [具体的な改善案]
+
+    ## 6. モバイル対応
     [具体的な問題点]
 
     [具体的な改善案]

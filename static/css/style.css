@@ -422,14 +422,27 @@ footer {
   color: #047857;
 }
 
-/* 既存のスタイルがここに続く場合は保持します */
-
 /* スクリーンショット表示用のスタイル */
 .screenshots-section {
   margin: 30px 0;
   padding: 20px;
   background-color: #f9fafb;
   border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.screenshots-section h2 {
+  font-size: 22px;
+  color: #374151;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.screenshots-section h3 {
+  font-size: 18px;
+  color: #4b5563;
+  margin-bottom: 10px;
 }
 
 .screenshot-container {
@@ -442,23 +455,49 @@ footer {
 .screenshot-item {
   flex: 1;
   min-width: 300px;
-}
-
-.screenshot-item h4 {
-  margin-bottom: 10px;
-  color: #374151;
-  font-size: 18px;
+  background-color: white;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .screenshot-img {
   width: 100%;
+  height: auto;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 @media (max-width: 768px) {
   .screenshot-container {
     flex-direction: column;
   }
+}
+
+.screenshot-img {
+  width: 100%;
+  height: auto;
+  max-height: 800px; /* スクロールバー付きの最大高さ */
+  object-fit: contain;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow-y: auto; /* 縦方向のスクロールバーを追加 */
+}
+
+.screenshot-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 15px;
+}
+
+.screenshot-item {
+  flex: 1;
+  min-width: 300px;
+  background-color: white;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
