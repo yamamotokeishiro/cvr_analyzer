@@ -45,21 +45,74 @@
         </div>
         {% endif %}
 
-        <div class="result-content">
-          <!-- マークダウン形式のテキストを整形して表示 -->
-          {% set lines = result.split('\n') %} {% for line in lines %} {% if
-          line.startswith('# ') %}
-          <h1>{{ line[2:] }}</h1>
-          {% elif line.startswith('## ') %}
-          <h2>{{ line[3:] }}</h2>
-          {% elif '問題点:' in line %}
-          <div class="problem-point">{{ line }}</div>
-          {% elif '改善案:' in line %}
-          <div class="solution-point">{{ line }}</div>
-          {% elif line.strip() %}
-          <p>{{ line }}</p>
-          {% endif %} {% endfor %}
+        <!-- 改善版 result.html (一部) -->
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white">
+            <h2 class="h4 mb-0">分析結果サマリー</h2>
+          </div>
+          <div class="card-body">
+            <!-- マークダウンのパース結果を構造化して表示 -->
+            {% for section in parsed_results %}
+            <div class="analysis-section mb-4">
+              <h3>{{ section.title }}</h3>
+
+              {% if section.status %}
+              <div class="status-box mb-3">
+                <h5>現状:</h5>
+                <p>{{ section.status }}</p>
+              </div>
+              {% endif %} {% if section.problems %}
+              <div class="problem-point">
+                <h5>問題点:</h5>
+                <ul>
+                  {% for problem in section.problems %}
+                  <li>{{ problem }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% endif %} {% if section.suggestions %}
+              <div class="solution-point">
+                <h5>改善案:</h5>
+                <ul>
+                  {% for suggestion in section.suggestions %}
+                  <li>{{ suggestion }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+
+            <!-- 優先的改善点 -->
+            {% if priorities %}
+            <div class="priorities-section mt-4">
+              <h3>優先的に取り組むべき改善点</h3>
+              {% for priority in priorities %}
+              <div class="priority-item">
+                <h5>優先度 {{ loop.index }}:</h5>
+                <p>{{ priority }}</p>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
         </div>
+
+        <!-- 分析結果の下にスクリーンショットを表示 -->
+        {% if screenshot %}
+        <div class="card mt-4">
+          <div class="card-header">
+            <h3>ウェブサイトスクリーンショット</h3>
+          </div>
+          <div class="card-body">
+            <img
+              src="{{ url_for('static', filename='screenshots/' + screenshot) }}"
+              alt="サイトスクリーンショット"
+              class="img-fluid border"
+            />
+          </div>
+        </div>
+        {% endif %}
 
         <div class="cta-section">
           <h2>さらに詳しい分析とサポートをご希望ですか？</h2>

@@ -27,133 +27,129 @@ openai.api_key = api_key
 
 def analyze_website(url):
     """
-    指定されたURLのWebサイトを分析する総合関数
+    ウェブサイトを分析する関数（OpenAI API 1.0.0以降に対応）
     """
     try:
-        print(f"URLの分析を開始: {url}")
-        # Webサイトの基本情報取得
-        website_data = get_basic_website_info(url)
-        print("ウェブサイト情報の取得に成功")
+        # ウェブサイトのコンテンツを取得
+        website_data = get_website_content(url)
 
-        # スクリーンショットの取得
-        screenshot_info = take_screenshot(url)
-        if screenshot_info:
-            print(f"スクリーンショット取得成功: {screenshot_info['desktop_path']}")
-            website_data['screenshot_info'] = screenshot_info
-        else:
-            print("スクリーンショット取得失敗")
-            website_data['screenshot_info'] = None
+        # OpenAI APIのキーを取得
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            # テスト用のデモ分析を返す
+            return get_demo_analysis()
 
-        # AI分析の実行
-        print("分析を実行")
-        if api_key == "dummy_key_for_testing":
-            analysis_result = get_demo_analysis()
-        else:
-            analysis_result = analyze_with_gpt(website_data, url)
-        print("分析完了")
+        # 改善版：より詳細な分析プロンプトを構築
+        prompt = f"""
+        # ウェブサイトのCVR導線分析
 
-        # 分析結果とスクリーンショット情報を含めて返す
-        return {
-            'analysis': analysis_result,
-            'screenshots': website_data.get('screenshot_info')
-        }
+        以下のウェブサイトを分析し、CVR(コンバージョン率)を向上させるための具体的な問題点と改善案を提示してください。
+
+        ## サイト情報
+        URL: {url}
+        タイトル: {website_data.get('title', '不明')}
+
+        ## 分析すべき要素
+        1. **ファーストビュー**: ユーザーが最初に見る領域は魅力的か、価値提案が明確か
+        2. **CTAボタン**: デザイン、配置、テキストは効果的か
+        3. **ユーザー導線**: コンバージョンまでの道筋が明確か
+        4. **フォーム**: シンプルで使いやすいか
+        5. **信頼性要素**: ユーザーの不安を取り除く要素があるか
+
+        ## 分析結果の形式
+        各要素について、以下の形式で回答してください：
+
+        ### [要素名]
+        **現状**: （現状の説明）
+        **問題点**: （問題点の箇条書き）
+        **改善案**: （改善案の箇条書き）
+
+        ## 優先的改善点
+        分析結果を踏まえて、最も効果が期待できる3つの改善点を優先度順に提示してください。
+        """
+
+        # 新しいOpenAI APIインターフェースを使用
+        from openai import OpenAI
+
+        client = OpenAI(api_key=api_key)
+
+        response = client.chat.completions.create(
+            model="gpt-4",  # より高度なモデルを使用
+            messages=[
+                {"role": "system", "content": "あなたはCVR最適化の専門家です。ウェブサイトを分析し、具体的で実用的な改善提案を行います。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2500
+        )
+
+        # 分析結果を取得（新APIでの取得方法）
+        analysis_result = response.choices[0].message.content
+
+        return analysis_result
+
     except Exception as e:
-        print(f"エラー詳細: {type(e).__name__}, {str(e)}")
-        print(traceback.format_exc())  # スタックトレースを出力
-        return {
-            'analysis': f"""
-# CVR導線分析レポート（エラー発生）
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"分析エラー: {str(e)}")
+        print(error_details)
+        return f"分析中にエラーが発生しました: {str(e)}"
 
-## エラー情報
-分析中にエラーが発生しました: {str(e)}
 
-## 一般的なCVR改善ポイント
-1. ファーストビューに明確な価値提案を置く
-2. CTAボタンの視認性を高める
-3. ユーザー導線を単純化する
-4. フォームの入力項目を最小限にする
-5. 信頼性を高める要素（実績、顧客の声）を追加する
-            """,
-            'screenshots': None
-        }
+def get_website_content(url):
+    """
+    URLからウェブサイトのコンテンツを取得する
+    """
+    import requests
+    from bs4 import BeautifulSoup
 
-def get_basic_website_info(url):
-    """ウェブサイトの基本情報を取得する関数"""
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
 
     try:
-        # ウェブページのHTMLを取得
-        print(f"URLにリクエスト: {url}")
-        start_time = time.time()
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        load_time = time.time() - start_time
-        print(f"ページロード時間: {load_time:.2f}秒")
+        # ウェブサイトにリクエスト
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()  # エラーがあれば例外を発生
 
-        # BeautifulSoupでHTMLを解析
-        print("HTMLの解析開始")
-        soup = BeautifulSoup(response.content, 'html.parser')
+        # BeautifulSoupでHTMLをパース
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-        # タイトルと説明を抽出
-        title = soup.title.string if soup.title else "タイトルなし"
-        print(f"タイトル: {title}")
+        # 基本情報の抽出
+        title = soup.title.string if soup.title else "No title"
 
-        # メタ説明の取得
+        # メタ説明の抽出
         meta_description = soup.find('meta', attrs={'name': 'description'})
-        description = ""
-        if meta_description:
-            if meta_description.has_attr('content'):
-                description = meta_description['content']
-        if not description:
-            description = "説明なし"
-        print(f"説明: {description[:50]}...")
+        description = meta_description['content'] if meta_description and 'content' in meta_description.attrs else ""
 
-        # 主要要素のカウント
-        links = len(soup.find_all('a'))
-        buttons = len(soup.find_all('button'))
-        forms = len(soup.find_all('form'))
-        images = len(soup.find_all('img'))
-        print(f"リンク: {links}, ボタン: {buttons}, フォーム: {forms}, 画像: {images}")
+        # HTMLの一部を抽出（分析用）
+        html_sample = str(soup.prettify())[:5000]  # 最初の5000文字だけ
 
-        # CTA要素の検出
-        cta_elements = identify_cta_elements(soup)
-        print(f"検出されたCTA要素: {len(cta_elements)}個")
-
-        # フォーム分析
-        forms_analysis = analyze_forms(soup)
-        print(f"検出されたフォーム: {len(forms_analysis)}個")
-
-        # テキストコンテンツを抽出
-        print("テキストコンテンツの抽出開始")
-        main_content = extract_main_content(soup)
-        print(f"テキスト長: {len(main_content)} 文字")
-
-        # サイト情報の構造化
-        site_info = {
-            'title': title,
-            'description': description,
-            'num_links': links,
-            'num_buttons': buttons,
-            'num_forms': forms,
-            'num_images': images,
-            'load_time': load_time
-        }
-
-        # 総合データを返す
+        # 基本的なデータを返す
         return {
-            'site_info': site_info,
-            'main_content': main_content,
-            'cta_elements': cta_elements,
-            'forms_analysis': forms_analysis,
-            'soup': soup  # 追加の分析のために保持
+            'title': title,
+            'meta_description': description,
+            'html': response.text,
+            'html_sample': html_sample
         }
 
+    except requests.exceptions.RequestException as e:
+        print(f"ウェブサイト取得エラー: {str(e)}")
+        return {
+            'error': f"ウェブサイトへのアクセスエラー: {str(e)}",
+            'title': 'エラー',
+            'meta_description': '',
+            'html_sample': ''
+        }
     except Exception as e:
-        print(f"ウェブサイト取得エラー詳細: {type(e).__name__}, {str(e)}")
-        print(traceback.format_exc())
-        raise Exception(f"ウェブサイトの取得中にエラーが発生しました: {str(e)}")
+        print(f"コンテンツ処理エラー: {str(e)}")
+        return {
+            'error': f"ウェブサイトの処理エラー: {str(e)}",
+            'title': 'エラー',
+            'meta_description': '',
+            'html_sample': ''
+        }
+
 
 def extract_main_content(soup):
     """HTMLから主要なコンテンツを抽出する関数"""
@@ -289,149 +285,55 @@ def analyze_forms(soup):
 
 def take_screenshot(url):
     """
-    デスクトップとモバイルの全ページスクリーンショットを取得する関数
-    正しいモバイルエミュレーションを使用
+    ウェブサイトのスクリーンショットを撮影する
     """
-    # スクリーンショット保存用ディレクトリの作成
-    screenshot_dir = "static/screenshots"
-    os.makedirs(screenshot_dir, exist_ok=True)
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+    import os
+    import time
 
-    # ユニークなファイル名を生成（タイムスタンプとUUID）
-    timestamp = int(time.time())
-    unique_id = str(uuid.uuid4())[:8]
-    desktop_filename = f"desktop_{timestamp}_{unique_id}.png"
-    mobile_filename = f"mobile_{timestamp}_{unique_id}.png"
+    # スクリーンショット保存ディレクトリ
+    screenshots_dir = os.path.join(os.path.dirname(__file__), 'static', 'screenshots')
+    os.makedirs(screenshots_dir, exist_ok=True)
 
-    desktop_path = os.path.join(screenshot_dir, desktop_filename)
-    mobile_path = os.path.join(screenshot_dir, mobile_filename)
+    # タイムスタンプ付きファイル名
+    import hashlib
+    from datetime import datetime
+    url_hash = hashlib.md5(url.encode()).hexdigest()[:10]
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    file_name = f"{url_hash}_{timestamp}.png"
+    file_path = os.path.join(screenshots_dir, file_name)
 
     try:
-        # デスクトップ用のドライバー設定
-        desktop_options = Options()
-        desktop_options.add_argument("--headless")
-        desktop_options.add_argument("--no-sandbox")
-        desktop_options.add_argument("--disable-dev-shm-usage")
+        # Chrome設定
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--window-size=1366,768")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
 
-        # デスクトップドライバーの初期化
+        # Chromeドライバーの初期化
         service = Service(ChromeDriverManager().install())
-        desktop_driver = webdriver.Chrome(service=service, options=desktop_options)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
 
-        # デスクトップ画面のスクリーンショット
-        desktop_driver.set_window_size(1366, 768)
-        desktop_driver.get(url)
-        time.sleep(3)  # ページ読み込み待機
+        # ページにアクセス
+        driver.get(url)
 
-        # JavaScriptを使用して完全なページの高さを取得
-        total_height = desktop_driver.execute_script("return Math.max(document.body.scrollHeight, document.body.offsetHeight, document.documentElement.clientHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight);")
+        # ページが完全に読み込まれるまで待機
+        time.sleep(3)
 
-        # ビューポートの設定
-        desktop_driver.set_window_size(1366, total_height)
-        time.sleep(1)  # レイアウト調整を待機
+        # スクリーンショットを撮影
+        driver.save_screenshot(file_path)
 
-        # 完全なページのスクリーンショットを取得
-        desktop_driver.save_screenshot(desktop_path)
-        print(f"デスクトップフルページスクリーンショットを保存: {desktop_path} (高さ: {total_height}px)")
+        driver.quit()
 
-        # デスクトップドライバーを閉じる
-        desktop_driver.quit()
-
-        # モバイル用のドライバー設定（モバイルエミュレーション付き）
-        mobile_options = Options()
-        mobile_options.add_argument("--headless")
-        mobile_options.add_argument("--no-sandbox")
-        mobile_options.add_argument("--disable-dev-shm-usage")
-
-        # モバイルエミュレーションの設定
-        mobile_emulation = {
-            "deviceMetrics": {"width": 375, "height": 812, "pixelRatio": 3.0},
-            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1"
-        }
-        mobile_options.add_experimental_option("mobileEmulation", mobile_emulation)
-
-        # モバイルドライバーの初期化
-        mobile_driver = webdriver.Chrome(service=service, options=mobile_options)
-
-        # モバイル画面のスクリーンショット
-        mobile_driver.get(url)
-        time.sleep(3)  # ページ読み込み待機
-
-        # JavaScriptを使用して完全なページの高さを取得
-        mobile_total_height = mobile_driver.execute_script("return Math.max(document.body.scrollHeight, document.body.offsetHeight, document.documentElement.clientHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight);")
-
-        # ビューポートの設定（高さはスクロール分も含める）
-        mobile_driver.execute_script(f"document.documentElement.style.height = '{mobile_total_height}px';")
-        time.sleep(1)  # レイアウト調整を待機
-
-        # 完全なページのスクリーンショットを取得
-        mobile_driver.save_screenshot(mobile_path)
-        print(f"モバイルフルページスクリーンショットを保存: {mobile_path} (高さ: {mobile_total_height}px)")
-
-        # モバイルドライバーを閉じる
-        mobile_driver.quit()
-
-        # 画像の視覚的特徴を分析
-        desktop_features = analyze_image_features(desktop_path)
-        mobile_features = analyze_image_features(mobile_path)
-
-        return {
-            'desktop_path': desktop_path,
-            'mobile_path': mobile_path,
-            'timestamp': timestamp,
-            'desktop_filename': desktop_filename,
-            'mobile_filename': mobile_filename,
-            'desktop_features': desktop_features,
-            'mobile_features': mobile_features,
-            'desktop_height': total_height,
-            'mobile_height': mobile_total_height
-        }
+        return file_name
     except Exception as e:
-        print(f"スクリーンショット取得エラー: {str(e)}")
-        print(traceback.format_exc())
+        print(f"スクリーンショット撮影エラー: {str(e)}")
+        return None
 
-        # エラーハンドリング - 単純なビューポートスクリーンショットを試みる
-        try:
-            print("代替手段を試行中...")
-            # デスクトップ
-            desktop_options = Options()
-            desktop_options.add_argument("--headless")
-            desktop_options.add_argument("--no-sandbox")
-            desktop_options.add_argument("--disable-dev-shm-usage")
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=desktop_options)
-            driver.set_window_size(1366, 768)
-            driver.get(url)
-            time.sleep(3)
-            driver.save_screenshot(desktop_path)
-            driver.quit()
-
-            # モバイル（単純化版）
-            mobile_options = Options()
-            mobile_options.add_argument("--headless")
-            mobile_options.add_argument("--no-sandbox")
-            mobile_options.add_argument("--disable-dev-shm-usage")
-            mobile_options.add_argument("--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1")
-            driver = webdriver.Chrome(service=service, options=mobile_options)
-            driver.set_window_size(375, 812)
-            driver.get(url)
-            time.sleep(3)
-            driver.save_screenshot(mobile_path)
-            driver.quit()
-
-            print("代替手段: 基本的なスクリーンショットを保存しました")
-
-            return {
-                'desktop_path': desktop_path,
-                'mobile_path': mobile_path,
-                'timestamp': timestamp,
-                'desktop_filename': desktop_filename,
-                'mobile_filename': mobile_filename,
-                'desktop_features': analyze_image_features(desktop_path),
-                'mobile_features': analyze_image_features(mobile_path),
-                'fallback_method': True
-            }
-        except Exception as fallback_error:
-            print(f"代替スクリーンショット取得エラー: {str(fallback_error)}")
-            return None
 
 
 
