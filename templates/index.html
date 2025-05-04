@@ -5,165 +5,551 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CVR導線分析ツール</title>
     <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/style.css') }}"
     />
+    <style>
+      body {
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f8f9fa;
+      }
+      .hero-section {
+        background: linear-gradient(135deg, #4b6cb7, #182848);
+        color: white;
+        padding: 60px 0;
+        margin-bottom: 40px;
+      }
+      .form-section {
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+        margin-bottom: 30px;
+      }
+      .loading-container {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.9);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+      .loading-spinner {
+        width: 3rem;
+        height: 3rem;
+      }
+      .analysis-step {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+      }
+      .analysis-step.active {
+        background-color: #e3f2fd;
+        transform: scale(1.03);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .step-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        background-color: #4b6cb7;
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+      }
+      .features-section {
+        margin: 40px 0;
+      }
+      .feature-item {
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+      }
+      .feature-item:hover {
+        transform: translateY(-5px);
+      }
+      .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        color: #4b6cb7;
+      }
+      .feature-title {
+        margin-bottom: 10px;
+        font-weight: 600;
+      }
+      .contact-section {
+        background-color: #e9f7fe;
+        padding: 40px 0;
+        margin-top: 40px;
+        border-radius: 10px;
+      }
+      .footer {
+        text-align: center;
+        padding: 30px 0;
+        background-color: #fff;
+        margin-top: 50px;
+        border-top: 1px solid #eee;
+      }
+      .btn-analyze {
+        background-color: #4b6cb7;
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 5px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+      .btn-analyze:hover {
+        background-color: #3a5a96;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .btn-contact {
+        background-color: #28a745;
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 5px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+      .btn-contact:hover {
+        background-color: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+    </style>
   </head>
   <body>
-    <!-- ローディング表示用のコンテナ -->
-    <div class="loading-container" id="loading-container">
-      <div class="loading-spinner"></div>
-      <div class="loading-text">分析中です...</div>
-      <div class="loading-progress">
-        <div class="loading-progress-bar" id="progress-bar"></div>
-      </div>
-      <div class="loading-steps">
-        <div class="loading-step" id="step-1">ウェブサイトの情報を取得中</div>
-        <div class="loading-step" id="step-2">HTML構造を解析中</div>
-        <div class="loading-step" id="step-3">視覚的要素を評価中</div>
-        <div class="loading-step" id="step-4">AI分析を実行中</div>
-        <div class="loading-step" id="step-5">レポートを生成中</div>
+    <!-- ヘッダーセクション -->
+    <div class="hero-section">
+      <div class="container">
+        <div class="row align-items-center">
+          <div class="col-md-7">
+            <h1 class="display-4 fw-bold mb-3">CVR導線分析ツール</h1>
+            <p class="lead mb-4">
+              URLを入力するだけで、あなたのサイトのコンバージョン率を向上させるための問題点と改善策がわかります。
+            </p>
+          </div>
+          <div class="col-md-5 d-none d-md-block text-center">
+            <img
+              src="{{ url_for('static', filename='images/analysis-illustration.png') }}"
+              alt="分析イメージ"
+              class="img-fluid"
+              onerror="this.style.display='none'"
+            />
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="container">
-      <header>
-        <h1>CVR導線分析ツール</h1>
-        <p>URLを入力するだけで、Webサイトの「CVR導線」について分析します</p>
-      </header>
-
-      <main>
+      <!-- フォームセクション -->
+      <div class="form-section">
+        <h2 class="text-center mb-4">ウェブサイトを分析する</h2>
         <form action="/analyze" method="post" id="analyze-form">
-          <div class="form-group">
-            <label for="url">分析したいWebサイトのURL</label>
-            <input
-              type="url"
-              id="url"
-              name="url"
-              placeholder="https://example.com"
-              required
-            />
+          <div class="mb-3">
+            <label for="url" class="form-label"
+              >分析したいウェブサイトのURLを入力</label
+            >
+            <div class="input-group">
+              <input
+                type="url"
+                name="url"
+                id="url"
+                class="form-control form-control-lg"
+                placeholder="https://example.com"
+                required
+              />
+              <button type="submit" class="btn btn-analyze btn-lg">
+                分析開始
+              </button>
+            </div>
+            <div class="form-text">※分析には1分程度かかります</div>
           </div>
-
-          <button type="submit" class="analyze-btn">分析開始</button>
         </form>
+      </div>
 
-        <div class="features">
-          <h2>このツールでわかること</h2>
-          <ul>
-            <li>ファーストビューの効果と問題点</li>
-            <li>CTAボタンの配置と魅力度</li>
-            <li>ユーザー導線の最適化ポイント</li>
-            <li>フォームの使いやすさと改善点</li>
-            <li>コンテンツの説得力と信頼性</li>
-          </ul>
+      <!-- 特徴セクション -->
+      <div class="features-section">
+        <h2 class="text-center mb-4">CVR導線分析の主なポイント</h2>
+        <div class="row">
+          <div class="col-md-4">
+            <div class="feature-item">
+              <div class="feature-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="1em"
+                  height="1em"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
+                  />
+                </svg>
+              </div>
+              <h3 class="feature-title">ファーストビュー</h3>
+              <p>ユーザーが最初に見る領域の分析と最適化提案を行います。</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="feature-item">
+              <div class="feature-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="1em"
+                  height="1em"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"
+                  />
+                  <path
+                    d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"
+                  />
+                </svg>
+              </div>
+              <h3 class="feature-title">CTAボタン</h3>
+              <p>
+                コンバージョンボタンのデザイン、配置、視認性を詳細に分析します。
+              </p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="feature-item">
+              <div class="feature-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="1em"
+                  height="1em"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M14.5 1.5a.5.5 0 0 1 .5.5v4.8a2.5 2.5 0 0 1-2.5 2.5H2.5A2.5 2.5 0 0 1 0 6.8V2a.5.5 0 0 1 .5-.5h14zm-5 5.8v3.5a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5V7.3a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5z"
+                  />
+                </svg>
+              </div>
+              <h3 class="feature-title">ユーザー導線</h3>
+              <p>
+                ユーザーがコンバージョンに至るまでの導線を分析し最適化します。
+              </p>
+            </div>
+          </div>
         </div>
-      </main>
+      </div>
 
-      <footer>
-        <p>&copy; 2025 CVR導線分析ツール</p>
-      </footer>
+      <!-- お問い合わせセクション（追加） -->
+      <div class="contact-section">
+        <div class="container">
+          <div class="row">
+            <div class="col-lg-6">
+              <h2>CVR向上のサポートが必要ですか？</h2>
+              <p class="lead">
+                弊社の専門チームがあなたのウェブサイトを徹底的に分析し、CVRを劇的に向上させるための具体的な施策をご提案します。
+              </p>
+              <ul class="mb-4">
+                <li>詳細なCVR導線分析レポート</li>
+                <li>競合サイトとの比較分析</li>
+                <li>改善案の優先順位付け</li>
+                <li>改善実装のサポート</li>
+              </ul>
+              <button
+                type="button"
+                class="btn btn-contact"
+                data-bs-toggle="modal"
+                data-bs-target="#contactModal"
+              >
+                無料相談を予約する
+              </button>
+            </div>
+            <div class="col-lg-6 d-none d-lg-block text-center">
+              <img
+                src="{{ url_for('static', filename='images/support-illustration.png') }}"
+                alt="サポートイメージ"
+                class="img-fluid"
+                style="max-height: 300px"
+                onerror="this.style.display='none'"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
+    <!-- フッター -->
+    <footer class="footer">
+      <div class="container">
+        <p>&copy; 2025 CVR導線分析ツール</p>
+      </div>
+    </footer>
+
+    <!-- ローディング表示 -->
+    <div class="loading-container" id="loading-container">
+      <div
+        class="spinner-border loading-spinner text-primary mb-4"
+        role="status"
+      >
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <h3 id="loading-step" class="mb-4">
+        ウェブサイトの情報を取得しています...
+      </h3>
+
+      <div class="container">
+        <div class="row">
+          <div class="col-md-8 offset-md-2">
+            <div class="analysis-step" id="step-1">
+              <div class="d-flex align-items-center mb-2">
+                <div class="step-number me-2">1</div>
+                <h5 class="mb-0">ウェブサイトの情報取得</h5>
+              </div>
+              <p class="mb-0 text-muted">HTMLコードを取得しています</p>
+            </div>
+            <div class="analysis-step" id="step-2">
+              <div class="d-flex align-items-center mb-2">
+                <div class="step-number me-2">2</div>
+                <h5 class="mb-0">HTMLの解析</h5>
+              </div>
+              <p class="mb-0 text-muted">ウェブサイトの構造を解析しています</p>
+            </div>
+            <div class="analysis-step" id="step-3">
+              <div class="d-flex align-items-center mb-2">
+                <div class="step-number me-2">3</div>
+                <h5 class="mb-0">AIによる分析</h5>
+              </div>
+              <p class="mb-0 text-muted">CVR導線を詳細に分析しています</p>
+            </div>
+            <div class="analysis-step" id="step-4">
+              <div class="d-flex align-items-center mb-2">
+                <div class="step-number me-2">4</div>
+                <h5 class="mb-0">結果生成</h5>
+              </div>
+              <p class="mb-0 text-muted">分析結果をまとめています</p>
+            </div>
+            <div class="analysis-step" id="step-5">
+              <div class="d-flex align-items-center mb-2">
+                <div class="step-number me-2">5</div>
+                <h5 class="mb-0">表示準備</h5>
+              </div>
+              <p class="mb-0 text-muted">分析結果を表示する準備をしています</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- お問い合わせモーダル -->
+    <div
+      class="modal fade"
+      id="contactModal"
+      tabindex="-1"
+      aria-labelledby="contactModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="contactModalLabel">無料相談のご予約</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form action="/contact" method="post">
+              <input
+                type="hidden"
+                name="analyzed_url"
+                value="トップページからのお問い合わせ"
+              />
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="company" class="form-label">会社名</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="company"
+                    name="company"
+                    required
+                  />
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="name" class="form-label">お名前</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="name"
+                    name="name"
+                    required
+                  />
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="email" class="form-label">メールアドレス</label>
+                  <input
+                    type="email"
+                    class="form-control"
+                    id="email"
+                    name="email"
+                    required
+                  />
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="phone" class="form-label">電話番号</label>
+                  <input
+                    type="tel"
+                    class="form-control"
+                    id="phone"
+                    name="phone"
+                  />
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="interests" class="form-label"
+                  >ご興味のある内容（複数選択可）</label
+                >
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    value="CVR分析"
+                    id="interest1"
+                    name="interests[]"
+                  />
+                  <label class="form-check-label" for="interest1"
+                    >CVR導線の詳細分析</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    value="競合分析"
+                    id="interest2"
+                    name="interests[]"
+                  />
+                  <label class="form-check-label" for="interest2"
+                    >競合サイトとの比較分析</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    value="改善提案"
+                    id="interest3"
+                    name="interests[]"
+                  />
+                  <label class="form-check-label" for="interest3"
+                    >具体的な改善案の提案</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    value="実装サポート"
+                    id="interest4"
+                    name="interests[]"
+                  />
+                  <label class="form-check-label" for="interest4"
+                    >改善策の実装サポート</label
+                  >
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="message" class="form-label">ご要望・ご質問</label>
+                <textarea
+                  class="form-control"
+                  id="message"
+                  name="message"
+                  rows="4"
+                  placeholder="現在のサイトの課題や、お聞きしたいことなどをご記入ください"
+                ></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                送信する
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        const form = document.getElementById("analyze-form");
-        const loadingContainer = document.getElementById("loading-container");
-        const progressBar = document.getElementById("progress-bar");
+      // フォーム送信時のローディング表示
+      document
+        .getElementById("analyze-form")
+        .addEventListener("submit", function (e) {
+          document.getElementById("loading-container").style.display = "flex";
+          simulateLoading();
+        });
+
+      // ローディング進捗のシミュレーション
+      function simulateLoading() {
         const steps = [
-          document.getElementById("step-1"),
-          document.getElementById("step-2"),
-          document.getElementById("step-3"),
-          document.getElementById("step-4"),
-          document.getElementById("step-5"),
+          {
+            id: "step-1",
+            text: "ウェブサイトの情報を取得しています...",
+            delay: 1000,
+          },
+          { id: "step-2", text: "HTMLを解析しています...", delay: 3000 },
+          { id: "step-3", text: "AIによる分析を行っています...", delay: 6000 },
+          { id: "step-4", text: "結果を生成しています...", delay: 3000 },
+          { id: "step-5", text: "表示の準備をしています...", delay: 2000 },
         ];
 
-        form.addEventListener("submit", function (e) {
-          e.preventDefault();
+        const loadingStep = document.getElementById("loading-step");
+        let currentStep = 0;
 
-          // フォームデータの取得
-          const url = document.getElementById("url").value;
-          if (!url) {
-            alert("URLを入力してください");
-            return;
+        function updateStep() {
+          if (currentStep < steps.length) {
+            // 現在のステップを非アクティブに
+            if (currentStep > 0) {
+              document
+                .getElementById(steps[currentStep - 1].id)
+                .classList.remove("active");
+            }
+
+            // 新しいステップをアクティブに
+            const step = steps[currentStep];
+            document.getElementById(step.id).classList.add("active");
+            loadingStep.textContent = step.text;
+
+            currentStep++;
+
+            // 次のステップへ
+            if (currentStep < steps.length) {
+              setTimeout(updateStep, step.delay);
+            }
           }
+        }
 
-          // ローディング表示の開始
-          loadingContainer.style.display = "flex";
-
-          // 進行状況のアニメーション
-          let progress = 0;
-          let currentStep = 0;
-
-          // 初期ステップをアクティブに
-          steps[currentStep].classList.add("active");
-
-          const interval = setInterval(() => {
-            progress += 0.5;
-
-            // 進行状況に応じてプログレスバーを更新
-            progressBar.style.width = Math.min(progress, 100) + "%";
-
-            // ステップの更新
-            if (progress >= 20 && currentStep < 1) {
-              steps[currentStep].classList.remove("active");
-              steps[currentStep].classList.add("completed");
-              currentStep = 1;
-              steps[currentStep].classList.add("active");
-            } else if (progress >= 40 && currentStep < 2) {
-              steps[currentStep].classList.remove("active");
-              steps[currentStep].classList.add("completed");
-              currentStep = 2;
-              steps[currentStep].classList.add("active");
-            } else if (progress >= 60 && currentStep < 3) {
-              steps[currentStep].classList.remove("active");
-              steps[currentStep].classList.add("completed");
-              currentStep = 3;
-              steps[currentStep].classList.add("active");
-            } else if (progress >= 80 && currentStep < 4) {
-              steps[currentStep].classList.remove("active");
-              steps[currentStep].classList.add("completed");
-              currentStep = 4;
-              steps[currentStep].classList.add("active");
-            }
-
-            // 100%に達したらインターバルをクリア
-            if (progress >= 100) {
-              clearInterval(interval);
-            }
-          }, 300);
-
-          // 実際のフォーム送信
-          fetch("/analyze", {
-            method: "POST",
-            body: new FormData(form),
-          })
-            .then((response) => {
-              if (!response.ok) {
-                throw new Error("Network response was not ok");
-              }
-              return response.text();
-            })
-            .then((html) => {
-              // 最後のステップを完了として表示
-              steps[currentStep].classList.remove("active");
-              steps[currentStep].classList.add("completed");
-
-              // 少し遅延させてからページを更新（ユーザーが完了を確認できるように）
-              setTimeout(() => {
-                // responseがHTML全体を返すため、ページ全体を置き換え
-                document.open();
-                document.write(html);
-                document.close();
-              }, 500);
-            })
-            .catch((error) => {
-              console.error("Error:", error);
-              loadingContainer.style.display = "none";
-              alert("分析中にエラーが発生しました。もう一度お試しください。");
-            });
-        });
-      });
+        updateStep();
+      }
     </script>
   </body>
 </html>
