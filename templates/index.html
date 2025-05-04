@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CVR導線分析ツール</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <!-- ローディング表示用のコンテナ -->
+    <div class="loading-container" id="loading-container">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">分析中です...</div>
+      <div class="loading-progress">
+        <div class="loading-progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="loading-steps">
+        <div class="loading-step" id="step-1">ウェブサイトの情報を取得中</div>
+        <div class="loading-step" id="step-2">HTML構造を解析中</div>
+        <div class="loading-step" id="step-3">視覚的要素を評価中</div>
+        <div class="loading-step" id="step-4">AI分析を実行中</div>
+        <div class="loading-step" id="step-5">レポートを生成中</div>
+      </div>
+    </div>
+
+    <div class="container">
+      <header>
+        <h1>CVR導線分析ツール</h1>
+        <p>URLを入力するだけで、Webサイトの「CVR導線」について分析します</p>
+      </header>
+
+      <main>
+        <form action="/analyze" method="post" id="analyze-form">
+          <div class="form-group">
+            <label for="url">分析したいWebサイトのURL</label>
+            <input
+              type="url"
+              id="url"
+              name="url"
+              placeholder="https://example.com"
+              required
+            />
+          </div>
+
+          <button type="submit" class="analyze-btn">分析開始</button>
+        </form>
+
+        <div class="features">
+          <h2>このツールでわかること</h2>
+          <ul>
+            <li>ファーストビューの効果と問題点</li>
+            <li>CTAボタンの配置と魅力度</li>
+            <li>ユーザー導線の最適化ポイント</li>
+            <li>フォームの使いやすさと改善点</li>
+            <li>コンテンツの説得力と信頼性</li>
+          </ul>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; 2025 CVR導線分析ツール</p>
+      </footer>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("analyze-form");
+        const loadingContainer = document.getElementById("loading-container");
+        const progressBar = document.getElementById("progress-bar");
+        const steps = [
+          document.getElementById("step-1"),
+          document.getElementById("step-2"),
+          document.getElementById("step-3"),
+          document.getElementById("step-4"),
+          document.getElementById("step-5"),
+        ];
+
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+
+          // フォームデータの取得
+          const url = document.getElementById("url").value;
+          if (!url) {
+            alert("URLを入力してください");
+            return;
+          }
+
+          // ローディング表示の開始
+          loadingContainer.style.display = "flex";
+
+          // 進行状況のアニメーション
+          let progress = 0;
+          let currentStep = 0;
+
+          // 初期ステップをアクティブに
+          steps[currentStep].classList.add("active");
+
+          const interval = setInterval(() => {
+            progress += 0.5;
+
+            // 進行状況に応じてプログレスバーを更新
+            progressBar.style.width = Math.min(progress, 100) + "%";
+
+            // ステップの更新
+            if (progress >= 20 && currentStep < 1) {
+              steps[currentStep].classList.remove("active");
+              steps[currentStep].classList.add("completed");
+              currentStep = 1;
+              steps[currentStep].classList.add("active");
+            } else if (progress >= 40 && currentStep < 2) {
+              steps[currentStep].classList.remove("active");
+              steps[currentStep].classList.add("completed");
+              currentStep = 2;
+              steps[currentStep].classList.add("active");
+            } else if (progress >= 60 && currentStep < 3) {
+              steps[currentStep].classList.remove("active");
+              steps[currentStep].classList.add("completed");
+              currentStep = 3;
+              steps[currentStep].classList.add("active");
+            } else if (progress >= 80 && currentStep < 4) {
+              steps[currentStep].classList.remove("active");
+              steps[currentStep].classList.add("completed");
+              currentStep = 4;
+              steps[currentStep].classList.add("active");
+            }
+
+            // 100%に達したらインターバルをクリア
+            if (progress >= 100) {
+              clearInterval(interval);
+            }
+          }, 300);
+
+          // 実際のフォーム送信
+          fetch("/analyze", {
+            method: "POST",
+            body: new FormData(form),
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Network response was not ok");
+              }
+              return response.text();
+            })
+            .then((html) => {
+              // 最後のステップを完了として表示
+              steps[currentStep].classList.remove("active");
+              steps[currentStep].classList.add("completed");
+
+              // 少し遅延させてからページを更新（ユーザーが完了を確認できるように）
+              setTimeout(() => {
+                // responseがHTML全体を返すため、ページ全体を置き換え
+                document.open();
+                document.write(html);
+                document.close();
+              }, 500);
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+              loadingContainer.style.display = "none";
+              alert("分析中にエラーが発生しました。もう一度お試しください。");
+            });
+        });
+      });
+    </script>
+  </body>
+</html>

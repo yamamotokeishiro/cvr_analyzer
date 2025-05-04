@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>分析結果 - CVR導線分析ツール</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>CVR導線分析レポート</h1>
+        <p>分析対象: <a href="{{ url }}" target="_blank">{{ url }}</a></p>
+      </header>
+
+      <main class="results">
+        <div class="result-content">
+          <!-- マークダウン形式のテキストを整形して表示 -->
+          {% set lines = result.split('\n') %} {% for line in lines %} {% if
+          line.startswith('# ') %}
+          <h1>{{ line[2:] }}</h1>
+          {% elif line.startswith('## ') %}
+          <h2>{{ line[3:] }}</h2>
+          {% elif '問題点:' in line %}
+          <div class="problem-point">{{ line }}</div>
+          {% elif '改善案:' in line %}
+          <div class="solution-point">{{ line }}</div>
+          {% else %}
+          <p>{{ line }}</p>
+          {% endif %} {% endfor %}
+        </div>
+
+        <div class="cta-section">
+          <h2>さらに詳しい分析とサポートをご希望ですか？</h2>
+          <p>
+            私たちの専門チームがあなたのウェブサイトを徹底的に分析し、CVRを劇的に向上させるための具体的な施策をご提案します。
+          </p>
+          <a href="#" class="contact-btn">無料相談を予約する</a>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; 2025 CVR導線分析ツール</p>
+      </footer>
+    </div>
+  </body>
+</html>
