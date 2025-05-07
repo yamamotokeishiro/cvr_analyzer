@@ -3,214 +3,308 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>分析結果 - CVR導線分析ツール</title>
+    <title>CVR分析結果 - {{ url }}</title>
     <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/style.css') }}"
-    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-      body {
-        font-family: "Helvetica Neue", Arial, sans-serif;
-        line-height: 1.6;
-        color: #333;
-        background-color: #f8f9fa;
-      }
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 20px;
-      }
-      .header {
-        background-color: #fff;
-        border-bottom: 1px solid #dee2e6;
-        padding: 20px 0;
-        margin-bottom: 30px;
-      }
-      .result-content {
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        padding: 30px;
-        margin-bottom: 30px;
-      }
-      h1 {
-        color: #2c3e50;
-        margin-bottom: 20px;
-      }
-      h2 {
-        color: #3498db;
-        margin-top: 30px;
-        margin-bottom: 15px;
-        border-bottom: 2px solid #f1f1f1;
-        padding-bottom: 10px;
-      }
-      h3 {
-        color: #2c3e50;
-        margin-top: 25px;
-        margin-bottom: 15px;
-      }
-      .problem-point {
-        background-color: #fff3f3;
-        border-left: 4px solid #dc3545;
-        padding: 15px;
-        margin-bottom: 20px;
-      }
-      .solution-point {
-        background-color: #f0fff4;
-        border-left: 4px solid #28a745;
-        padding: 15px;
-        margin-bottom: 20px;
-      }
-      .cta-section {
-        background-color: #e9f7fe;
-        border-radius: 8px;
-        padding: 30px;
-        margin-top: 40px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-      }
-      .contact-btn {
-        background-color: #3498db;
-        color: white;
-        padding: 10px 25px;
-        font-size: 1.1rem;
-        border-radius: 5px;
-        border: none;
-        transition: all 0.3s ease;
-      }
-      .contact-btn:hover {
-        background-color: #2980b9;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      }
-      .screenshot-container {
-        margin: 20px 0;
-        text-align: center;
+        body {
+          font-family: "Helvetica Neue", Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          background-color: #f6f6f6;
+        }
+        .container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background-color: #fff;
+          border-bottom: 1px solid #ddd;
+          padding: 20px 0;
+          margin-bottom: 30px;
+        }
+        .result-content {
+          background-color: #fff;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+          padding: 30px;
+          margin-bottom: 30px;
+        }
+        h1 {
+          color: #2c3e50;
+        }
+        h2 {
+          color: #3498db;
+          margin-top: 25px;
+          margin-bottom: 15px;
+        }
+        h3 {
+          font-size: 1.2em;
+          color: #2c3e50;
+          margin-top: 20px;
+          margin-bottom: 10px;
+        }
+        .cta-section {
+          background-color: #e9f7fe;
+          border-radius: 8px;
+          padding: 20px;
+          margin-top: 40px;
+          border-left: 4px solid #3498db;
+        }
+        .score-card {
+          text-align: center;
+          padding: 15px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        .overall-score {
+          font-size: 3em;
+          font-weight: bold;
+        }
+        .score-label {
+          font-size: 0.9em;
+          color: #7f8c8d;
+        }
+        .problem-point {
+          background-color: #ffefef;
+          border-left: 4px solid #e74c3c;
+          padding: 15px;
+          margin-bottom: 20px;
+        }
+        .solution-point {
+          background-color: #f0fff4;
+          border-left: 4px solid #2ecc71;
+          padding: 15px;
+          margin-bottom: 20px;
+        }
+        .screenshot-container {
+          margin: 20px 0;
+          text-align: center;
+          max-width: 100%; /* コンテナの最大幅を設定 */
       }
       .screenshot-container img {
-        max-width: 100%;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+          max-width: 100%;
+          max-height: 500px; /* 画像の最大高さを制限 */
+          width: auto; /* 縦横比を維持 */
+          height: auto; /* 縦横比を維持 */
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
       }
-      footer {
-        text-align: center;
-        margin-top: 50px;
-        padding: 20px 0;
-        color: #6c757d;
-        font-size: 0.9rem;
-        border-top: 1px solid #dee2e6;
+
+      /* タブ表示用のスタイルを追加 */
+      .screenshot-tabs {
+          display: flex;
+          margin-bottom: 15px;
+          border-bottom: 1px solid #ddd;
       }
+      .screenshot-tab {
+          padding: 8px 16px;
+          cursor: pointer;
+          background-color: #f1f1f1;
+          border: 1px solid #ddd;
+          border-bottom: none;
+          margin-right: 5px;
+          border-radius: 4px 4px 0 0;
+      }
+      .screenshot-tab.active {
+          background-color: #fff;
+          border-bottom: 1px solid #fff;
+          margin-bottom: -1px;
+      }
+      .screenshot-content {
+          display: none;
+      }
+      .screenshot-content.active {
+          display: block;
+      }
+        }
+        .tag {
+          display: inline-block;
+          background-color: #e5e5e5;
+          border-radius: 30px;
+          padding: 3px 10px;
+          font-size: 0.8em;
+          margin-right: 5px;
+          margin-bottom: 5px;
+        }
+        .tag.easy {
+          background-color: #d4f5d4;
+          color: #1a7a1a;
+        }
+        .tag.medium {
+          background-color: #fff6d4;
+          color: #7a631a;
+        }
+        .tag.hard {
+          background-color: #f5d4d4;
+          color: #7a1a1a;
+        }
+        .tag.high-impact {
+          background-color: #d4e6f5;
+          color: #1a4b7a;
+        }
+        footer {
+          text-align: center;
+          padding: 20px 0;
+          color: #95a5a6;
+          font-size: 0.9em;
+        }
+        .contact-btn {
+          margin-top: 20px;
+        }
     </style>
   </head>
   <body>
-    <div class="container">
-      <header class="header">
+    <div class="header">
+      <div class="container">
         <h1>CVR導線分析結果</h1>
-        <p class="lead">
-          分析対象: <a href="{{ url }}" target="_blank">{{ url }}</a>
-        </p>
-      </header>
-
-      <main>
-        <!-- スクリーンショット表示（もしあれば） -->
-        {% if screenshot %}
-        <div class="card mb-4">
-          <div class="card-header">
-            <h3 class="mb-0">ウェブサイトスクリーンショット</h3>
-          </div>
-          <div class="card-body screenshot-container">
-            <img
-              src="{{ url_for('static', filename='screenshots/' + screenshot) }}"
-              alt="サイトスクリーンショット"
-              class="img-fluid"
-            />
-          </div>
-        </div>
-        {% endif %}
-
-        <!-- 分析結果 -->
-        <div class="result-content">
-          <!-- マークダウン形式のテキストをHTMLに変換して表示 -->
-          {% set lines = result.split('\n') %} {% for line in lines %} {% if
-          line.startswith('# ') %}
-          <h1>{{ line[2:] }}</h1>
-          {% elif line.startswith('## ') %}
-          <h2>{{ line[3:] }}</h2>
-          {% elif line.startswith('### ') %}
-          <h3>{{ line[4:] }}</h3>
-          {% elif line.startswith('**現状**:') %}
-          <div class="mb-3">
-            <strong>現状:</strong> {{ line.split('**現状**:', 1)[1] }}
-          </div>
-          {% elif line.startswith('**問題点**:') %}
-          <div class="problem-point">
-            <h4>問題点:</h4>
-            <!-- 次の箇条書き項目はループの次の行で処理 -->
-          </div>
-          {% elif line.startswith('**改善案**:') %}
-          <div class="solution-point">
-            <h4>改善案:</h4>
-            <!-- 次の箇条書き項目はループの次の行で処理 -->
-          </div>
-          {% elif line.startswith('- ') %}
-          <ul class="mb-0">
-            <li>{{ line[2:] }}</li>
-          </ul>
-          {% elif line.strip().startswith('1.') or line.strip().startswith('2.')
-          or line.strip().startswith('3.') %}
-          <ol class="mb-3">
-            <li>{{ line.split('.', 1)[1].strip() }}</li>
-          </ol>
-          {% elif line.strip() %}
-          <p>{{ line }}</p>
-          {% else %}
-          <br />
-          {% endif %} {% endfor %}
-        </div>
-
-        <!-- お問い合わせCTA -->
-        <div class="cta-section text-center">
-          <h2>さらに詳しい分析とサポートを受ける</h2>
-          <p class="lead mb-4">
-            私たちの専門チームがあなたのウェブサイトを徹底的に分析し、CVRを劇的に向上させる具体的な施策をご提案します。
-          </p>
-          <a href="#" id="contact-btn" class="btn contact-btn"
-            >無料相談を予約する</a
-          >
-        </div>
-      </main>
-
-      <footer>
-        <p>&copy; 2025 CVR導線分析ツール</p>
-      </footer>
+        <p>分析対象URL: <a href="{{ url }}" target="_blank">{{ url }}</a></p>
+      </div>
     </div>
 
-    <!-- お問い合わせモーダル（展開時にのみ表示） -->
-    <div
-      class="modal fade"
-      id="contactModal"
-      tabindex="-1"
-      aria-labelledby="contactModalLabel"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="contactModalLabel">無料相談のご予約</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-8">
+          <!-- 分析結果概要 -->
+          <div class="result-content">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="score-card" style="background-color: #f8f9fa">
+                  <div class="overall-score">{{ result.overall_score }}</div>
+                  <div class="score-label">総合評価 (10点満点)</div>
+                </div>
+              </div>
+              <div class="col-md-8">
+                <canvas id="radarChart"></canvas>
+              </div>
+            </div>
           </div>
-          <div class="modal-body">
+
+          <!-- result.html のスクリーンショット表示部分を修正 -->
+          <div class="result-content">
+            <h2>サイトビジュアル分析</h2>
+
+            <div class="screenshot-tabs">
+              <div
+                class="screenshot-tab active"
+                onclick="showScreenshot('desktop')"
+              >
+                デスクトップ表示
+              </div>
+              <div class="screenshot-tab" onclick="showScreenshot('mobile')">
+                モバイル表示
+              </div>
+            </div>
+
+            <div id="desktop-screenshot" class="screenshot-content active">
+              <div class="screenshot-container">
+                <img
+                  src="/{{ result.screenshots.desktop }}"
+                  alt="デスクトップスクリーンショット"
+                />
+              </div>
+            </div>
+
+            <div id="mobile-screenshot" class="screenshot-content">
+              <div class="screenshot-container">
+                <img
+                  src="/{{ result.screenshots.mobile }}"
+                  alt="モバイルスクリーンショット"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- result.html の改善提案部分を修正 -->
+          <div class="result-content">
+            <h2>CVR向上のための改善提案</h2>
+
+            {% if result.improvements and result.improvements|length > 0 %} {%
+            for improvement in result.improvements %}
+            <div class="solution-point">
+              <h3>{{ improvement.title|default('改善案 ' ~ loop.index) }}</h3>
+              <p>
+                {{ improvement.description|default('詳細情報がありません') }}
+              </p>
+              <div>
+                {% if improvement.difficulty %}
+                <span
+                  class="tag {% if improvement.difficulty == '簡単' %}easy{% elif improvement.difficulty == '中' %}medium{% else %}hard{% endif %}"
+                >
+                  難易度: {{ improvement.difficulty }}
+                </span>
+                {% endif %} {% if improvement.impact %}
+                <span
+                  class="tag {% if improvement.impact == '高' %}high-impact{% endif %}"
+                >
+                  効果: {{ improvement.impact }}
+                </span>
+                {% endif %} {% if improvement.category %}
+                <span class="tag">{{ improvement.category }}</span>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %} {% else %}
+            <div class="alert alert-warning">
+              <p>
+                改善提案の生成中にエラーが発生したか、提案が見つかりませんでした。
+              </p>
+              <p>以下のような一般的な改善ポイントを確認してください：</p>
+              <ul>
+                <li>CTAボタンの視認性を高め、クリック率を向上させる</li>
+                <li>
+                  フォームの入力項目を最小限に抑え、入力のハードルを下げる
+                </li>
+                <li>信頼性を高めるために実績やお客様の声を追加する</li>
+                <li>ページの読み込み速度を改善し、離脱率を減少させる</li>
+                <li>
+                  モバイル表示を最適化し、すべてのデバイスで良好なUXを提供する
+                </li>
+              </ul>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- 強みと弱み -->
+          <div class="result-content">
+            <div class="row">
+              <div class="col-md-6">
+                <h2>サイトの強み</h2>
+                <ul>
+                  {% for strength in result.strengths[:5] %}
+                  <li>{{ strength }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+              <div class="col-md-6">
+                <h2>改善すべき点</h2>
+                <ul>
+                  {% for weakness in result.weaknesses[:5] %}
+                  <li>{{ weakness }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <!-- お問い合わせCTA -->
+          <div class="result-content cta-section">
+            <h2>CVR改善サポート</h2>
+            <p>
+              このレポートで指摘された課題を専門家が解決いたします。CVR向上のための具体的な改善プランをご提案します。
+            </p>
+
             <form action="/contact" method="post">
               <input type="hidden" name="analyzed_url" value="{{ url }}" />
+
               <div class="mb-3">
                 <label for="company" class="form-label">会社名</label>
                 <input
@@ -221,28 +315,29 @@
                   required
                 />
               </div>
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <label for="name" class="form-label">お名前</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="name"
-                    name="name"
-                    required
-                  />
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label for="email" class="form-label">メールアドレス</label>
-                  <input
-                    type="email"
-                    class="form-control"
-                    id="email"
-                    name="email"
-                    required
-                  />
-                </div>
+
+              <div class="mb-3">
+                <label for="name" class="form-label">お名前</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="name"
+                  name="name"
+                  required
+                />
               </div>
+
+              <div class="mb-3">
+                <label for="email" class="form-label">メールアドレス</label>
+                <input
+                  type="email"
+                  class="form-control"
+                  id="email"
+                  name="email"
+                  required
+                />
+              </div>
+
               <div class="mb-3">
                 <label for="phone" class="form-label">電話番号</label>
                 <input
@@ -252,35 +347,210 @@
                   name="phone"
                 />
               </div>
+
               <div class="mb-3">
-                <label for="message" class="form-label">ご要望・ご質問</label>
+                <label class="form-label">ご興味のあるサービス</label>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="interests[]"
+                    value="デザイン改善"
+                    id="check1"
+                  />
+                  <label class="form-check-label" for="check1"
+                    >デザイン改善</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="interests[]"
+                    value="UX/UI改善"
+                    id="check2"
+                  />
+                  <label class="form-check-label" for="check2">UX/UI改善</label>
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="interests[]"
+                    value="コンテンツ制作"
+                    id="check3"
+                  />
+                  <label class="form-check-label" for="check3"
+                    >コンテンツ制作</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="interests[]"
+                    value="フォーム最適化"
+                    id="check4"
+                  />
+                  <label class="form-check-label" for="check4"
+                    >フォーム最適化</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    name="interests[]"
+                    value="CVRコンサルティング"
+                    id="check5"
+                  />
+                  <label class="form-check-label" for="check5"
+                    >CVRコンサルティング</label
+                  >
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="message" class="form-label">メッセージ</label>
                 <textarea
                   class="form-control"
                   id="message"
                   name="message"
-                  rows="3"
+                  rows="4"
                 ></textarea>
               </div>
+
               <button type="submit" class="btn btn-primary w-100">
-                送信する
+                無料相談を申し込む
               </button>
             </form>
+          </div>
+
+          <!-- カテゴリスコア詳細 -->
+          <div class="result-content">
+            <h2>詳細スコア</h2>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>カテゴリ</th>
+                  <th>スコア</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for category, score in result.category_scores.items() %}
+                <tr>
+                  <td>
+                    {% if category == 'content_quality' %} コンテンツ品質 {%
+                    elif category == 'cta_effectiveness' %} CTA効果 {% elif
+                    category == 'user_flow' %} ユーザーフロー {% elif category
+                    == 'form_usability' %} フォーム使いやすさ {% elif category
+                    == 'trust_elements' %} 信頼性要素 {% elif category ==
+                    'visual_design' %} ビジュアルデザイン {% elif category ==
+                    'responsive_design' %} レスポンシブ設計 {% elif category ==
+                    'overall_ux' %} 全体的なUX {% else %} {{ category }} {%
+                    endif %}
+                  </td>
+                  <td>
+                    <div class="progress">
+                      <div
+                        class="progress-bar {% if score < 5 %}bg-danger {% elif score < 7 %}bg-warning {% else %}bg-success{% endif %}"
+                        role="progressbar"
+                        style="width: {{ score*10 }}%"
+                        aria-valuenow="{{ score }}"
+                        aria-valuemin="0"
+                        aria-valuemax="10"
+                      >
+                        {{ score }}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <footer>
+      <div class="container">
+        <p>&copy; 2025 CVR導線分析サービス</p>
+      </div>
+    </footer>
+
     <script>
-      // お問い合わせボタンクリック時にモーダルを表示
-      document
-        .getElementById("contact-btn")
-        .addEventListener("click", function () {
-          var contactModal = new bootstrap.Modal(
-            document.getElementById("contactModal")
-          );
-          contactModal.show();
+      // レーダーチャートの設定
+      const ctx = document.getElementById('radarChart').getContext('2d');
+      const scores = {{ result.category_scores|tojson }};
+
+      // カテゴリ名の日本語マッピング
+      const categoryLabels = {
+      'content_quality': 'コンテンツ品質',
+      'cta_effectiveness': 'CTA効果',
+      'user_flow': 'ユーザーフロー',
+      'form_usability': 'フォーム使いやすさ',
+      'trust_elements': '信頼性要素',
+      'visual_design': 'ビジュアルデザイン',
+      'responsive_design': 'レスポンシブ設計',
+      'overall_ux': '全体的なUX'
+      };
+
+      const categories = Object.keys(scores);
+      const values = Object.values(scores);
+
+      // カテゴリを日本語に変換
+      const labels = categories.map(cat => categoryLabels[cat] || cat);
+
+      const radarChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+          labels: labels,
+          datasets: [{
+              label: 'カテゴリスコア',
+              data: values,
+              backgroundColor: 'rgba(54, 162, 235, 0.2)',
+              borderColor: 'rgba(54, 162, 235, 1)',
+              borderWidth: 2,
+              pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+              pointBorderColor: '#fff',
+              pointHoverBackgroundColor: '#fff',
+              pointHoverBorderColor: 'rgba(54, 162, 235, 1)',
+          }]
+      },
+      options: {
+          scales: {
+              r: {
+                  angleLines: {
+                      display: true
+                  },
+                  suggestedMin: 0,
+                  suggestedMax: 10
+              }
+          },
+          plugins: {
+              legend: {
+                  display: false
+              }
+          }
+      }
+      });
+
+      function showScreenshot(type) {
+        // すべてのタブとコンテンツを非アクティブにする
+        document.querySelectorAll(".screenshot-tab").forEach((tab) => {
+          tab.classList.remove("active");
         });
+        document.querySelectorAll(".screenshot-content").forEach((content) => {
+          content.classList.remove("active");
+        });
+
+        // 選択したタブとコンテンツをアクティブにする
+        document
+          .querySelector(`.screenshot-tab[onclick*="${type}"]`)
+          .classList.add("active");
+        document.getElementById(`${type}-screenshot`).classList.add("active");
+      };
     </script>
   </body>
 </html>

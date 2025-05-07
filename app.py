@@ -1,10 +1,14 @@
 from flask import Flask, render_template, request, jsonify
+import json
 import os
-import json  # jsonモジュールのインポート
 from datetime import datetime
-import traceback  # デバッグ用
+import traceback
+from analyzer import CVRAnalyzer  # 新しい分析エンジンをインポート
 
 app = Flask(__name__)
+
+# CVR分析器のインスタンスを作成
+analyzer = CVRAnalyzer()
 
 @app.route('/')
 def index():
@@ -18,30 +22,14 @@ def analyze():
         if not url:
             return jsonify({"error": "URLが入力されていません"})
 
-        # URLのスキーム確認と修正
+        # URLのフォーマット確認と修正
         if not url.startswith(('http://', 'https://')):
             url = 'https://' + url
 
-        # サンプルの分析結果（OpenAI APIを使わない）
-        result = f"""
-        # {url} の分析結果
+        # サイトの分析実行（新しい分析エンジンを使用）
+        result = analyzer.analyze_website(url)
 
-        ## ファーストビュー
-        **現状**: テスト分析です。
-        **問題点**:
-        - サンプルの問題点1
-        - サンプルの問題点2
-
-        **改善案**:
-        - サンプルの改善案1
-        - サンプルの改善案2
-
-        ## 優先的改善点
-        1. 第一優先: サンプルの優先事項1
-        2. 第二優先: サンプルの優先事項2
-        """
-
-        # HTMLとして結果を返す
+        # 結果をHTMLとして表示
         return render_template('result.html', url=url, result=result)
 
     except Exception as e:
@@ -71,7 +59,7 @@ def contact():
         filename = f"{contact_data['timestamp'].replace(':', '-').replace(' ', '_')}.json"
         filepath = os.path.join(contacts_dir, filename)
 
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(contact_data, f, ensure_ascii=False, indent=2)
 
         # サンクスページを表示
@@ -79,7 +67,7 @@ def contact():
 
     except Exception as e:
         print(f"お問い合わせ処理エラー: {str(e)}")
-        print(traceback.format_exc())  # 詳細なエラー情報を出力
+        print(traceback.format_exc())
         return jsonify({"error": str(e)})
 
 if __name__ == '__main__':
