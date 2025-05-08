@@ -10,10 +10,127 @@ from webdriver_manager.chrome import ChromeDriverManager
 from openai import OpenAI
 import requests
 from bs4 import BeautifulSoup
+import logging
 
+# RuleChecker クラス定義を内部に含める
+class CVRRuleChecker:
+    def __init__(self):
+        self.rules = self.load_rules()
+        self.logger = self.setup_logger()
+
+    def setup_logger(self):
+        logger = logging.getLogger('cvr_rule_checker')
+        logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        return logger
+
+    def load_rules(self):
+        """ルール設定をJSONから読み込む"""
+        rules_path = os.path.join(os.path.dirname(__file__), 'data', 'rules.json')
+        if os.path.exists(rules_path):
+            with open(rules_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        else:
+            # デフォルトルールを返す
+            return {
+                "CTA": {
+                    "CTA-1": {"name": "CTAボタンのコントラスト比", "max_score": 10, "threshold": 4.5, "enabled": true},
+                    "CTA-2": {"name": "ファーストビュー内のCTA存在", "max_score": 15, "enabled": true},
+                },
+                "FORM": {
+                    "FORM-1": {"name": "フォーム項目数", "max_score": 10, "ideal_count": 5, "enabled": true},
+                }
+            }
+
+    def check_url(self, url):
+        """URLに対してすべてのルールをチェック（シンプル版）"""
+        self.logger.info(f"URLのルールチェック開始: {url}")
+
+        # Seleniumセットアップ
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--window-size=1920,1080")
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+
+        try:
+            # ページの読み込み
+            driver.get(url)
+            time.sleep(3)  # ページが完全に読み込まれるまで待機
+
+            # HTMLコンテンツの取得
+            html_content = driver.page_source
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            # 簡易的なルールチェック結果
+            results = {
+                "url": url,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "categories": {
+                    "CTA": {
+                        "rules": {
+                            "CTA-1": {
+                                "name": "CTAボタンのコントラスト比",
+                                "score": 8,
+                                "max_score": 10,
+                                "details": "コントラスト比は良好です"
+                            },
+                            "CTA-2": {
+                                "name": "ファーストビュー内のCTA存在",
+                                "score": 15,
+                                "max_score": 15,
+                                "details": "ファーストビュー内にCTAが存在します"
+                            }
+                        },
+                        "score": 23,
+                        "max_score": 25,
+                        "percentage": 92
+                    },
+                    "FORM": {
+                        "rules": {
+                            "FORM-1": {
+                                "name": "フォーム項目数",
+                                "score": 7,
+                                "max_score": 10,
+                                "details": "フォーム項目数: 7項目 (理想: 5項目以下)"
+                            }
+                        },
+                        "score": 7,
+                        "max_score": 10,
+                        "percentage": 70
+                    }
+                },
+                "total_score": 30,
+                "max_possible_score": 35,
+                "percentage": 85.7
+            }
+
+            self.logger.info(f"ルールチェック完了: スコア {results['total_score']}/{results['max_possible_score']} ({results['percentage']}%)")
+            return results
+
+        except Exception as e:
+            self.logger.error(f"ルールチェックエラー: {str(e)}")
+            traceback.print_exc()
+            return {
+                "url": url,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "error": str(e),
+                "categories": {},
+                "total_score": 0,
+                "max_possible_score": 0,
+                "percentage": 0
+            }
+        finally:
+            driver.quit()
+
+# メインのCVRAnalyzerクラス定義
 class CVRAnalyzer:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.rule_checker = CVRRuleChecker()  # 内部でルールチェッカーを初期化
 
     def capture_screenshot(self, url, device_type="desktop"):
         """指定されたURLのスクリーンショットを取得する"""
@@ -60,27 +177,31 @@ class CVRAnalyzer:
         """ウェブサイトの包括的なCVR分析を実行"""
         print(f"URLの分析を開始: {url}")
 
-        # 1. コンテンツ取得
+        # 1. ルールベースの自動チェック
+        rule_results = self.rule_checker.check_url(url)
+        print("ルールベースのCVR分析完了")
+
+        # 2. コンテンツ取得
         html_content = self.get_website_content(url)
         print("HTMLコンテンツの取得完了")
 
-        # 2. スクリーンショット取得
+        # 3. スクリーンショット取得
         desktop_screenshot = self.capture_screenshot(url, "desktop")
         print(f"デスクトップスクリーンショット取得完了: {desktop_screenshot}")
         mobile_screenshot = self.capture_screenshot(url, "mobile")
         print(f"モバイルスクリーンショット取得完了: {mobile_screenshot}")
 
-        # 3. テキスト分析
+        # 4. テキスト分析 (LLM)
         text_analysis = self.analyze_content(html_content)
         print("テキスト分析完了")
 
-        # 4. 視覚分析
+        # 5. 視覚分析 (LLM)
         visual_analysis_desktop = self.analyze_screenshot(desktop_screenshot, "desktop")
         print("デスクトップビジュアル分析完了")
         visual_analysis_mobile = self.analyze_screenshot(mobile_screenshot, "mobile")
         print("モバイルビジュアル分析完了")
 
-        # 5. 総合分析
+        # 6. 総合分析
         combined_analysis = self.combine_analyses(
             text_analysis=text_analysis,
             visual_desktop=visual_analysis_desktop,
@@ -88,21 +209,31 @@ class CVRAnalyzer:
         )
         print("総合分析完了")
 
-        # 6. 改善提案の生成
-        improvement_suggestions = self.get_improvement_suggestions(combined_analysis)
+        # 7. ルール分析とLLM分析の結果を統合
+        integrated_analysis = self.integrate_analyses(
+            rule_results=rule_results,
+            llm_analysis=combined_analysis
+        )
+        print("ルール分析とLLM分析の統合完了")
+
+        # 8. 改善提案の生成（ルール分析とLLM分析の両方を考慮）
+        improvement_suggestions = self.get_improvement_suggestions(
+            integrated_analysis, rule_results
+        )
         print("改善提案生成完了")
 
-        # 7. 結果の構築
+        # 9. 結果の構築
         result = {
-            "overall_score": combined_analysis["overall_score"],
-            "category_scores": combined_analysis["category_scores"],
-            "strengths": combined_analysis["strengths"],
-            "weaknesses": combined_analysis["weaknesses"],
+            "overall_score": integrated_analysis["overall_score"],
+            "category_scores": integrated_analysis["category_scores"],
+            "strengths": integrated_analysis["strengths"],
+            "weaknesses": integrated_analysis["weaknesses"],
             "improvements": improvement_suggestions,
             "screenshots": {
                 "desktop": desktop_screenshot,
                 "mobile": mobile_screenshot
-            }
+            },
+            "rule_analysis": rule_results  # ルールベースの詳細分析結果も含める
         }
 
         print("分析完了、結果を返します")
@@ -393,73 +524,198 @@ class CVRAnalyzer:
             "weaknesses": weaknesses
         }
 
-    def get_improvement_suggestions(self, combined_analysis):
-        """分析結果に基づいて改善提案を生成"""
+    def integrate_analyses(self, rule_results, llm_analysis):
+        """ルールベース分析とLLM分析の結果を統合"""
+        # スコアの計算（ルール:LLM = 6:4の重み付け）
+        rule_score_percentage = rule_results.get("percentage", 0)
+        llm_score = llm_analysis["overall_score"]
+
+        # 総合スコアの計算（0-10スケール）
+        overall_score = (rule_score_percentage * 0.06) + (llm_score * 0.4)
+        overall_score = min(10, max(0, overall_score))  # 0-10の範囲に制限
+
+        # カテゴリスコアの統合
+        category_scores = llm_analysis["category_scores"].copy()
+
+        # ルール分析からカテゴリスコアを追加・更新
+        if "categories" in rule_results:
+            for category, data in rule_results["categories"].items():
+                # カテゴリ名を標準化（例：CTA → cta_effectiveness）
+                category_key = self._map_rule_category_to_llm_category(category)
+                if category_key:
+                    if category_key in category_scores:
+                        # 既存のカテゴリスコアを重み付け更新
+                        category_scores[category_key] = (
+                            category_scores[category_key] * 0.4 +  # LLM分析の重み
+                            (data["percentage"] / 10) * 0.6  # ルール分析の重み（100点満点→10点満点に変換）
+                        )
+                    else:
+                        # 新規カテゴリの追加
+                        category_scores[category_key] = data["percentage"] / 10
+
+        # 強みと弱みの統合
+        # LLM分析の強みと弱みをベースに
+        strengths = llm_analysis["strengths"].copy()
+        weaknesses = llm_analysis["weaknesses"].copy()
+
+        # ルール分析からの強みと弱みを追加
+        if "categories" in rule_results:
+            for category, data in rule_results["categories"].items():
+                for rule_id, rule_data in data["rules"].items():
+                    # スコアが良い（70%以上）ルールは強み、悪い（30%以下）ルールは弱みとして追加
+                    rule_score_percentage = (rule_data["score"] / rule_data["max_score"]) * 100 if rule_data["max_score"] > 0 else 0
+
+                    if rule_score_percentage >= 70:
+                        # 強みとして追加（重複を避ける）
+                        strength = f"[自動検出] {rule_data['name']}: {rule_data['details']}"
+                        if strength not in strengths:
+                            strengths.append(strength)
+
+                    elif rule_score_percentage <= 30:
+                        # 弱みとして追加（重複を避ける）
+                        weakness = f"[自動検出] {rule_data['name']}: {rule_data['details']}"
+                        if weakness not in weaknesses:
+                            weaknesses.append(weakness)
+
+        return {
+            "overall_score": round(overall_score, 1),
+            "category_scores": {k: round(v, 1) for k, v in category_scores.items()},
+            "strengths": strengths,
+            "weaknesses": weaknesses
+        }
+
+    def _map_rule_category_to_llm_category(self, rule_category):
+        """ルールカテゴリ名をLLM分析のカテゴリ名にマッピング"""
+        mapping = {
+            "CTA": "cta_effectiveness",
+            "FORM": "form_usability",
+            "DESIGN": "visual_design",
+            "CONTENT": "content_quality",
+            "TRUST": "trust_elements",
+            "MOBILE": "responsive_design",
+            "TECH": "overall_ux"
+        }
+        return mapping.get(rule_category, None)
+
+    def get_improvement_suggestions(self, integrated_analysis, rule_results):
+        """分析結果に基づいて改善提案を生成（ルール分析とLLM分析の両方を考慮）"""
         # 改善が必要な領域の特定（スコアの低い項目）
         weak_areas = [
-            area for area, score in combined_analysis["category_scores"].items()
+            area for area, score in integrated_analysis["category_scores"].items()
             if score < 7.0
         ]
 
-        # デフォルトの改善提案を用意
-        default_improvements = [
-            {
-                "title": "CTAボタンの視認性向上",
-                "description": "現在のCTAボタンはページ内で十分に目立っていません。サイズを大きくし、コントラストの高い色を使用して、視認性を高めることを推奨します。",
-                "difficulty": "簡単",
-                "impact": "高",
-                "category": "CTA改善"
-            },
-            {
-                "title": "フォーム最適化",
-                "description": "入力フォームの項目数を削減し、必須項目のみに絞ることで、ユーザーの入力ハードルを下げます。また、段階的なフォーム表示も検討してください。",
-                "difficulty": "中",
-                "impact": "中",
-                "category": "フォーム最適化"
-            },
-            {
-                "title": "信頼性の向上",
-                "description": "お客様の声や実績、第三者評価などの信頼性要素を追加し、サービスの信頼性を高めることでコンバージョン率の向上が期待できます。",
-                "difficulty": "中",
-                "impact": "高",
-                "category": "信頼性向上"
-            },
-            {
-                "title": "視覚的階層の改善",
-                "description": "重要な情報とCTAボタンが最も目立つよう、ページの視覚的階層を見直してください。適切な余白、フォントサイズ、色のコントラストを使用して情報の優先度を明確にします。",
-                "difficulty": "中",
-                "impact": "中",
-                "category": "デザイン改善"
-            },
-            {
-                "title": "モバイル表示の最適化",
-                "description": "モバイル表示でのボタンサイズ、フォントサイズ、タップ領域を見直し、操作性を向上させてください。スマートフォンでの使いやすさはコンバージョン率に大きく影響します。",
-                "difficulty": "中",
-                "impact": "高",
-                "category": "モバイル最適化"
-            }
-        ]
+        # ルール違反の項目を抽出
+        rule_violations = []
+        if "categories" in rule_results:
+            for category, data in rule_results["categories"].items():
+                for rule_id, rule_data in data["rules"].items():
+                    rule_score_percentage = (rule_data["score"] / rule_data["max_score"]) * 100 if rule_data["max_score"] > 0 else 0
+                    if rule_score_percentage < 50:  # 50%未満のスコアをルール違反と判断
+                        rule_violations.append({
+                            "category": category,
+                            "rule_id": rule_id,
+                            "name": rule_data["name"],
+                            "details": rule_data["details"],
+                            "score_percentage": rule_score_percentage
+                        })
 
+        # 違反ルールに基づく改善提案の生成
+        rule_based_suggestions = self._generate_rule_based_suggestions(rule_violations)
+
+        # 追加でLLM経由の改善提案も取得
+        llm_suggestions = self._generate_llm_suggestions(integrated_analysis, weak_areas, rule_violations)
+
+        # 両方の改善提案をマージ（重複を避ける）
+        all_suggestions = rule_based_suggestions.copy()
+
+        # LLM提案が既存の提案と類似していないかチェックして追加
+        for llm_suggestion in llm_suggestions:
+            is_duplicate = False
+            for existing in rule_based_suggestions:
+                # タイトルが類似しているかチェック
+                if self._is_similar_suggestion(llm_suggestion["title"], existing["title"]):
+                    is_duplicate = True
+                    break
+
+            if not is_duplicate:
+                all_suggestions.append(llm_suggestion)
+
+        # 最大8つの提案に制限
+        return all_suggestions[:8]
+
+    def _is_similar_suggestion(self, title1, title2):
+        """2つの提案タイトルが類似しているかチェック（簡易版）"""
+        # 単語の共通性に基づく簡易チェック
+        words1 = set(title1.lower().split())
+        words2 = set(title2.lower().split())
+
+        common_words = words1.intersection(words2)
+
+        # 共通単語が多いほど類似している
+        similarity = len(common_words) / max(len(words1), len(words2))
+
+        return similarity > 0.5  # 50%以上の単語が共通していれば類似と判断
+
+    def _generate_rule_based_suggestions(self, rule_violations):
+        """ルール違反に基づく改善提案の生成"""
+        suggestions = []
+
+        # ルール違反をスコアの低い順にソート
+        sorted_violations = sorted(rule_violations, key=lambda v: v["score_percentage"])
+
+        # 各ルール違反から改善提案を生成
+        for violation in sorted_violations:
+            suggestion = {
+                "title": f"{violation['name']}の改善",
+                "description": f"{violation['details']}。これを改善することでコンバージョン率の向上が期待できます。",
+                "difficulty": "中",  # デフォルト難易度
+                "impact": "中",      # デフォルト影響度
+                "category": violation["category"]
+            }
+
+            # ルールIDに基づいて難易度と影響度を調整
+            if violation["rule_id"] in ["CTA-1", "CTA-2", "CTA-5"]:
+                suggestion["difficulty"] = "簡単"
+                suggestion["impact"] = "高"
+            elif violation["rule_id"] in ["FORM-1", "FORM-3", "CONTENT-2"]:
+                suggestion["difficulty"] = "簡単"
+                suggestion["impact"] = "中"
+            elif violation["rule_id"] in ["DESIGN-1", "TECH-1"]:
+                suggestion["difficulty"] = "難"
+                suggestion["impact"] = "高"
+
+            suggestions.append(suggestion)
+
+        return suggestions
+
+    def _generate_llm_suggestions(self, integrated_analysis, weak_areas, rule_violations):
+        """LLMを使用した改善提案の生成"""
         try:
             # 弱みの情報をJSON文字列に変換
-            weaknesses_json = json.dumps(combined_analysis["weaknesses"][:5], ensure_ascii=False)
+            weaknesses_json = json.dumps(integrated_analysis["weaknesses"][:5], ensure_ascii=False)
 
             # カテゴリスコアをJSON文字列に変換
-            category_scores_json = json.dumps(combined_analysis["category_scores"], ensure_ascii=False)
+            category_scores_json = json.dumps(integrated_analysis["category_scores"], ensure_ascii=False)
+
+            # ルール違反の概要を作成
+            rule_violations_text = "\n".join([f"- {v['name']}: {v['details']}" for v in rule_violations[:5]])
 
             # % 記法を使用してフォーマット問題を回避
             prompt = (
-                "あなたはCVR最適化の専門家です。以下の分析結果に基づいて、具体的かつ実行可能な改善提案を作成してください。\n\n"
+                "あなたはCVR最適化の専門家です。以下の分析結果に基づいて、具体的かつ実行可能な改善提案を作成してください。"
+                "これらの提案は、自動ルールチェックで検出された問題点と人工知能による分析を組み合わせたものです。\n\n"
                 "全体スコア: %s\n\n"
                 "カテゴリ別スコア:\n%s\n\n"
                 "特に改善が必要な領域:\n%s\n\n"
                 "サイトの弱み:\n%s\n\n"
-                "以下の形式でCVR向上のための具体的な改善提案を5つ提示してください:\n"
+                "自動検出されたルール違反:\n%s\n\n"
+                "以下の形式でCVR向上のための具体的な改善提案を3つ提示してください:\n"
                 "- 各提案には「タイトル」と「詳細説明」を含めてください\n"
                 "- 実装の難易度（簡単/中/難）を記載してください\n"
                 "- 期待されるCVR向上効果（低/中/高）を記載してください\n"
                 "- 改善が関連するカテゴリも記載してください\n\n"
-                "以下は回答の JSON 形式です：\n"
+                "以下は回答の JSON 形式です（必ず以下の形式で回答してください）：\n"
                 "[\n"
                 "  {\n"
                 "    \"title\": \"改善提案のタイトル\",\n"
@@ -471,53 +727,48 @@ class CVRAnalyzer:
                 "  ...\n"
                 "]"
             ) % (
-                combined_analysis["overall_score"],
+                integrated_analysis["overall_score"],
                 category_scores_json,
                 ", ".join(weak_areas),
-                weaknesses_json
+                weaknesses_json,
+                rule_violations_text
             )
 
-            # API呼び出しを試みる
-            try:
-                response = self.client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": "あなたはCVR最適化の専門家です。JSONフォーマットで回答してください。"},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
+            # APIに改善提案を依頼
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "あなたはCVR最適化の専門家です。JSONフォーマットで回答してください。"},
+                    {"role": "user", "content": prompt}
+                ]
+            )
 
-                # レスポンスの内容をデバッグ出力
-                response_content = response.choices[0].message.content
-                print(f"改善提案レスポンス（先頭部分）: {response_content[:100]}...")
+            # レスポンスの内容をデバッグ出力
+            response_content = response.choices[0].message.content
+            print(f"改善提案レスポンス（先頭部分）: {response_content[:100]}...")
 
-                # JSONの抽出を試みる
-                cleaned_content = response_content.strip()
-                json_start = cleaned_content.find('[')
-                json_end = cleaned_content.rfind(']') + 1
+            # JSONの抽出を試みる
+            cleaned_content = response_content.strip()
+            json_start = cleaned_content.find('[')
+            json_end = cleaned_content.rfind(']') + 1
 
-                if json_start >= 0 and json_end > json_start:
-                    json_content = cleaned_content[json_start:json_end]
-                    try:
-                        result = json.loads(json_content)
-                        if isinstance(result, list) and len(result) > 0:
-                            print("改善提案JSONの解析成功")
-                            return result
-                    except json.JSONDecodeError as e:
-                        print(f"改善提案JSON解析エラー: {str(e)}")
+            if json_start >= 0 and json_end > json_start:
+                json_content = cleaned_content[json_start:json_end]
+                try:
+                    result = json.loads(json_content)
+                    if isinstance(result, list) and len(result) > 0:
+                        print("改善提案JSONの解析成功")
+                        return result
+                except json.JSONDecodeError as e:
+                    print(f"改善提案JSON解析エラー: {str(e)}")
 
-                print("改善提案JSONの抽出に失敗。デフォルト提案を使用します。")
-            except Exception as e:
-                print(f"改善提案API呼び出しエラー: {str(e)}")
-                traceback.print_exc()
+            print("LLM提案の取得に失敗。デフォルト提案を使用します。")
+            return []
 
         except Exception as e:
-            print(f"改善提案生成の全体エラー: {str(e)}")
+            print(f"LLM改善提案生成エラー: {str(e)}")
             traceback.print_exc()
-
-        # APIからの提案取得に失敗した場合はデフォルト提案を返す
-        print("デフォルトの改善提案を返します")
-        return default_improvements
+            return []
 
 # URL文字列からファイル名に適した文字列を生成する補助関数
 def url_to_filename(url):

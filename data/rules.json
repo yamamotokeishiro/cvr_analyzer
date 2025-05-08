@@ -1,0 +1,228 @@
+{
+  "CTA": {
+    "CTA-1": {
+      "name": "CTAボタンのコントラスト比",
+      "max_score": 10,
+      "enabled": true,
+      "threshold": 4.5
+    },
+    "CTA-2": {
+      "name": "ファーストビュー内のCTA存在",
+      "max_score": 15,
+      "enabled": true
+    },
+    "CTA-3": {
+      "name": "CTA周辺の余白",
+      "max_score": 5,
+      "enabled": true
+    },
+    "CTA-4": {
+      "name": "CTAのサイズ",
+      "max_score": 8,
+      "enabled": true
+    },
+    "CTA-5": {
+      "name": "CTAテキストの明確さ",
+      "max_score": 7,
+      "enabled": true
+    },
+    "CTA-6": {
+      "name": "複数CTAの数",
+      "max_score": 5,
+      "enabled": true
+    }
+  },
+  "FORM": {
+    "FORM-1": {
+      "name": "フォーム項目数",
+      "max_score": 10,
+      "enabled": true,
+      "ideal_count": 5
+    },
+    "FORM-2": {
+      "name": "必須項目の割合",
+      "max_score": 5,
+      "enabled": true
+    },
+    "FORM-3": {
+      "name": "フィールドラベルの存在",
+      "max_score": 8,
+      "enabled": true
+    },
+    "FORM-4": {
+      "name": "エラー表示の有無",
+      "max_score": 7,
+      "enabled": true
+    },
+    "FORM-5": {
+      "name": "モバイルでの入力最適化",
+      "max_score": 10,
+      "enabled": true
+    },
+    "FORM-6": {
+      "name": "プライバシーポリシー表示",
+      "max_score": 5,
+      "enabled": true
+    }
+  },
+  "DESIGN": {
+    "DESIGN-1": {
+      "name": "モバイルレスポンシブ対応",
+      "max_score": 15,
+      "enabled": true
+    },
+    "DESIGN-2": {
+      "name": "ページ読み込み速度",
+      "max_score": 10,
+      "enabled": true
+    },
+    "DESIGN-3": {
+      "name": "視覚的階層",
+      "max_score": 8,
+      "enabled": true
+    },
+    "DESIGN-4": {
+      "name": "画像の最適化",
+      "max_score": 5,
+      "enabled": true
+    },
+    "DESIGN-5": {
+      "name": "余白の適切さ",
+      "max_score": 7,
+      "enabled": true
+    },
+    "DESIGN-6": {
+      "name": "フォントの可読性",
+      "max_score": 5,
+      "enabled": true
+    }
+  },
+  "CONTENT": {
+    "CONTENT-1": {
+      "name": "見出しの明確さ",
+      "max_score": 8,
+      "enabled": true
+    },
+    "CONTENT-2": {
+      "name": "箇条書きの使用",
+      "max_score": 6,
+      "enabled": true
+    },
+    "CONTENT-3": {
+      "name": "テキスト量",
+      "max_score": 5,
+      "enabled": true
+    },
+    "CONTENT-4": {
+      "name": "キーメッセージの位置",
+      "max_score": 7,
+      "enabled": true
+    },
+    "CONTENT-5": {
+      "name": "画像とテキストのバランス",
+      "max_score": 4,
+      "enabled": true
+    },
+    "CONTENT-6": {
+      "name": "専門用語の少なさ",
+      "max_score": 5,
+      "enabled": true
+    }
+  },
+  "TRUST": {
+    "TRUST-1": {
+      "name": "セキュリティ証明の表示",
+      "max_score": 10,
+      "enabled": true
+    },
+    "TRUST-2": {
+      "name": "社会的証明の存在",
+      "max_score": 8,
+      "enabled": true
+    },
+    "TRUST-3": {
+      "name": "連絡先情報の明示",
+      "max_score": 7,
+      "enabled": true
+    },
+    "TRUST-4": {
+      "name": "実績・数字の表示",
+      "max_score": 6,
+      "enabled": true
+    },
+    "TRUST-5": {
+      "name": "ブランドロゴの視認性",
+      "max_score": 4,
+      "enabled": true
+    },
+    "TRUST-6": {
+      "name": "プライバシーポリシー",
+      "max_score": 5,
+      "enabled": true
+    }
+  },
+  "MOBILE": {
+    "MOBILE-1": {
+      "name": "タップターゲットサイズ",
+      "max_score": 12,
+      "enabled": true
+    },
+    "MOBILE-2": {
+      "name": "ビューポート設定",
+      "max_score": 8,
+      "enabled": true
+    },
+    "MOBILE-3": {
+      "name": "フォントサイズ",
+      "max_score": 7,
+      "enabled": true
+    },
+    "MOBILE-4": {
+      "name": "コンテンツ幅",
+      "max_score": 6,
+      "enabled": true
+    },
+    "MOBILE-5": {
+      "name": "インタースティシャル",
+      "max_score": 8,
+      "enabled": true
+    },
+    "MOBILE-6": {
+      "name": "タッチフレンドリーナビ",
+      "max_score": 9,
+      "enabled": true
+    }
+  },
+  "TECH": {
+    "TECH-1": {
+      "name": "ページ速度",
+      "max_score": 15,
+      "enabled": true
+    },
+    "TECH-2": {
+      "name": "画像の代替テキスト",
+      "max_score": 5,
+      "enabled": true
+    },
+    "TECH-3": {
+      "name": "フォーム送信方法",
+      "max_score": 7,
+      "enabled": true
+    },
+    "TECH-4": {
+      "name": "外部リンク設定",
+      "max_score": 3,
+      "enabled": true
+    },
+    "TECH-5": {
+      "name": "JavaScriptエラー",
+      "max_score": 5,
+      "enabled": true
+    },
+    "TECH-6": {
+      "name": "ファビコン設定",
+      "max_score": 3,
+      "enabled": true
+    }
+  }
+}

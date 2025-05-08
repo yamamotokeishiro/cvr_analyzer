@@ -70,5 +70,59 @@ def contact():
         print(traceback.format_exc())
         return jsonify({"error": str(e)})
 
+
+@app.route('/rules')
+def manage_rules():
+    """ルール管理画面を表示"""
+    # ルール設定を取得
+    rule_checker = CVRAnalyzer().rule_checker
+    rules = rule_checker.load_rules()
+
+    return render_template('rules.html', rules=rules)
+
+@app.route('/rules/update', methods=['POST'])
+def update_rules():
+    """ルール設定を更新"""
+    try:
+        # フォームデータの取得
+        updated_rules = {}
+
+        # カテゴリごとに処理
+        for category in request.form.getlist('categories'):
+            updated_rules[category] = {}
+
+            # このカテゴリのルールを処理
+            for rule_id in request.form.getlist(f'rules_{category}'):
+                updated_rules[category][rule_id] = {
+                    "name": request.form.get(f'name_{rule_id}'),
+                    "max_score": int(request.form.get(f'max_score_{rule_id}')),
+                    "enabled": request.form.get(f'enabled_{rule_id}') == 'on'
+                }
+
+                # 特定のルールタイプに基づいて追加パラメータを設定
+                if rule_id == 'CTA-1':
+                    updated_rules[category][rule_id]["threshold"] = float(request.form.get(f'threshold_{rule_id}', 4.5))
+                elif rule_id == 'FORM-1':
+                    updated_rules[category][rule_id]["ideal_count"] = int(request.form.get(f'ideal_count_{rule_id}', 5))
+
+        # ルール設定を保存
+        rules_path = os.path.join(os.path.dirname(__file__), 'data', 'rules.json')
+        os.makedirs(os.path.dirname(rules_path), exist_ok=True)
+
+        with open(rules_path, 'w', encoding='utf-8') as f:
+            json.dump(updated_rules, f, ensure_ascii=False, indent=2)
+
+        flash('ルール設定を更新しました', 'success')
+        return redirect(url_for('manage_rules'))
+
+    except Exception as e:
+        print(f"ルール更新エラー: {str(e)}")
+        traceback.print_exc()
+        flash(f'エラーが発生しました: {str(e)}', 'danger')
+        return redirect(url_for('manage_rules'))
+
+
+
+
 if __name__ == '__main__':
     app.run(debug=True)

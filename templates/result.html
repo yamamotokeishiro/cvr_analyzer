@@ -469,6 +469,86 @@
               </tbody>
             </table>
           </div>
+          <!-- result.htmlに追加 -->
+          <div class="result-content">
+            <h2>自動ルールチェック結果</h2>
+
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <div class="score-card">
+                  <div class="overall-score">
+                    {{ result.rule_analysis.percentage }}%
+                  </div>
+                  <div class="score-label">自動ルールチェックスコア</div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <canvas id="rulesCategoryChart"></canvas>
+              </div>
+            </div>
+
+            <div class="accordion" id="rulesAccordion">
+              {% for category_name, category_data in
+              result.rule_analysis.categories.items() %}
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ category_name }}">
+                  <button
+                    class="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapse{{ category_name }}"
+                    aria-expanded="false"
+                    aria-controls="collapse{{ category_name }}"
+                  >
+                    {{ category_name }}
+                    <span class="ms-auto">{{ category_data.percentage }}%</span>
+                  </button>
+                </h2>
+                <div
+                  id="collapse{{ category_name }}"
+                  class="accordion-collapse collapse"
+                  aria-labelledby="heading{{ category_name }}"
+                  data-bs-parent="#rulesAccordion"
+                >
+                  <div class="accordion-body">
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th>ルール</th>
+                          <th>結果</th>
+                          <th>スコア</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for rule_id, rule_data in category_data.rules.items()
+                        %}
+                        <tr>
+                          <td>{{ rule_data.name }}</td>
+                          <td>{{ rule_data.details }}</td>
+                          <td>
+                            <div class="progress">
+                              <div
+                                class="progress-bar {% if rule_data.score / rule_data.max_score < 0.3 %}bg-danger {% elif rule_data.score / rule_data.max_score < 0.7 %}bg-warning {% else %}bg-success{% endif %}"
+                                role="progressbar"
+                                style="width: {{ (rule_data.score / rule_data.max_score) * 100 }}%"
+                                aria-valuenow="{{ rule_data.score }}"
+                                aria-valuemin="0"
+                                aria-valuemax="{{ rule_data.max_score }}"
+                              >
+                                {{ rule_data.score }}/{{ rule_data.max_score }}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -551,6 +631,41 @@
           .classList.add("active");
         document.getElementById(`${type}-screenshot`).classList.add("active");
       };
+    </script>
+    <script>
+      // ルールカテゴリチャートの設定
+      const ruleCtx = document.getElementById('rulesCategoryChart').getContext('2d');
+      const ruleCategories = {{ result.rule_analysis.categories|tojson }};
+
+      const ruleLabels = Object.keys(ruleCategories);
+      const ruleValues = ruleLabels.map(cat => ruleCategories[cat].percentage);
+
+      const ruleChart = new Chart(ruleCtx, {
+          type: 'bar',
+          data: {
+              labels: ruleLabels,
+              datasets: [{
+                  label: 'カテゴリスコア(%)',
+                  data: ruleValues,
+                  backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                  borderColor: 'rgba(75, 192, 192, 1)',
+                  borderWidth: 1
+              }]
+          },
+          options: {
+              scales: {
+                  y: {
+                      beginAtZero: true,
+                      max: 100
+                  }
+              },
+              plugins: {
+                  legend: {
+                      display: false
+                  }
+              }
+          }
+      });
     </script>
   </body>
 </html>
